@@ -81,6 +81,15 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
                           throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact thedata.org for assistance.", this);
                     }
                 }
+            } else if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
+                if (ctxt.pidWebservice().pidExists(theDataset)) {
+                    final String identifier = ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator());
+                    theDataset.setIdentifier(identifier);
+                    if (ctxt.pidWebservice().pidExists(theDataset)) {
+                        throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact thedata.org for assistance.", this);
+                    }
+                }
+                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
             } else {
                  throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact thedata.org for assistance.", this);
             }

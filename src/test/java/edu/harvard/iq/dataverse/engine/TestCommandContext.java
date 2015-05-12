@@ -102,8 +102,13 @@ public class TestCommandContext implements CommandContext {
 	public HandlenetServiceBean handleNet() {
 		return null;
 	}
-        
-        @Override
+
+    @Override
+    public PidServiceBean pidWebservice() {
+        return null;
+    }
+
+    @Override
 	public SettingsServiceBean settings() {
 		return null;
 	} 

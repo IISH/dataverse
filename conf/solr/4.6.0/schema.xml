@@ -272,6 +272,7 @@
    <field name="fileNameWithoutExtension" type="text_en" stored="true" indexed="true" multiValued="true"/>
    <field name="variableName" type="text_en" stored="true" indexed="true" multiValued="true"/>
    <field name="variableLabel" type="text_en" stored="true" indexed="true" multiValued="true"/>
+   <field name="variableValue" type="string" stored="false" indexed="true" multiValued="true"/>
 
    <field name="fileDescription" type="text_en" stored="true" indexed="true" multiValued="false"/>
 

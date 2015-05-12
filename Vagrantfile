@@ -10,6 +10,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.hostname = "standalone"
     standalone.vm.box = "puppet-vagrant-boxes.puppetlabs.com-centos-65-x64-virtualbox-puppet.box"
 
+  config.vm.provider "virtualbox" do |v|
+    v.customize ["modifyvm", :id, "--cpus", 2]
+    v.customize ["modifyvm", :id, "--memory", "2048"]
+  end
+
     operating_system = "centos"
     if ENV['OPERATING_SYSTEM'].nil?
       puts "OPERATING_SYSTEM environment variable not specified. Using #{operating_system} by default.\nTo specify it in bash: export OPERATING_SYSTEM=debian"
@@ -33,45 +38,14 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       puts "MAIL_SERVER environment variable found, using #{mailserver}"
     end
 
-    config.vm.provider "virtualbox" do |v|
-      v.memory = 2048
-      v.cpus = 1
-    end
-    config.vm.provision "shell", path: "scripts/vagrant/setup.sh"
-    config.vm.provision "shell", path: "scripts/vagrant/setup-solr.sh"
-    config.vm.provision "shell", path: "scripts/vagrant/install-dataverse.sh", args: mailserver
+    #config.vm.provision "shell", path: "scripts/vagrant/setup.sh"
+    #config.vm.provision "shell", path: "scripts/vagrant/setup-solr.sh"
+    #config.vm.provision "shell", path: "scripts/vagrant/install-dataverse.sh", args: mailserver
     # FIXME: get tests working and re-enable them!
     #config.vm.provision "shell", path: "scripts/vagrant/test.sh"
 
-    config.vm.network "private_network", type: "dhcp"
-    config.vm.network "forwarded_port", guest: 80, host: 8888
-    config.vm.network "forwarded_port", guest: 443, host: 9999
-    config.vm.network "forwarded_port", guest: 8983, host: 8993
-    config.vm.network "forwarded_port", guest: 8080, host: 8088
-    config.vm.network "forwarded_port", guest: 8181, host: 8188
-
-    # FIXME: use /dataverse/downloads instead
-    config.vm.synced_folder "downloads", "/downloads"
-    # FIXME: use /dataverse/conf instead
-    config.vm.synced_folder "conf", "/conf"
-    # FIXME: use /dataverse/scripts instead
-    config.vm.synced_folder "scripts", "/scripts"
+    config.vm.network "private_network", ip: "10.0.0.100"
     config.vm.synced_folder ".", "/dataverse"
-  end
-
-  config.vm.define "solr", autostart: false do |solr|
-    config.vm.hostname = "solr"
-    solr.vm.box = "puppet-vagrant-boxes.puppetlabs.com-centos-65-x64-virtualbox-puppet.box"
-    config.vm.synced_folder ".", "/dataverse"
-    config.vm.network "private_network", type: "dhcp"
-    config.vm.network "forwarded_port", guest: 8983, host: 9001
-  end
-
-  config.vm.define "test", autostart: false do |test|
-    config.vm.hostname = "test"
-    test.vm.box = "puppet-vagrant-boxes.puppetlabs.com-centos-65-x64-virtualbox-puppet.box"
-    config.vm.synced_folder ".", "/dataverse"
-    config.vm.network "private_network", type: "dhcp"
   end
 
 end

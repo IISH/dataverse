@@ -7,8 +7,8 @@ package edu.harvard.iq.dataverse.engine.command.impl;
 
 import edu.harvard.iq.dataverse.DataFile;
 import edu.harvard.iq.dataverse.Dataset;
-import edu.harvard.iq.dataverse.DatasetVersionUser;
 import edu.harvard.iq.dataverse.DatasetField;
+import edu.harvard.iq.dataverse.DatasetVersionUser;
 import edu.harvard.iq.dataverse.authorization.Permission;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
@@ -18,14 +18,14 @@ import edu.harvard.iq.dataverse.engine.command.RequiredPermissions;
 import edu.harvard.iq.dataverse.engine.command.exception.CommandException;
 import edu.harvard.iq.dataverse.engine.command.exception.IllegalCommandException;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
+
+import javax.validation.ConstraintViolation;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
 
 /**
  *
@@ -111,6 +111,18 @@ public class UpdateDatasetCommand extends AbstractCommand<Dataset> {
                 } else {
                     //some reason other that duplicate identifier so don't try again
                     //EZID down possibly
+                }
+            }
+        }  else if (theDataset.getProtocol().equals("hdl") && doiProvider.equals("IISH") && theDataset.getGlobalIdCreateTime() == null) {
+            if (ctxt.pidWebservice().pidExists(theDataset)) {
+                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
+            } else {
+                final String identifier = ctxt.datasets().generateIdentifierSequence(theDataset.getProtocol(), theDataset.getAuthority(), theDataset.getDoiSeparator());
+                theDataset.setIdentifier(identifier);
+                if (ctxt.pidWebservice().pidExists(theDataset)) {
+                    // didn't register new identifier
+                } else {
+                    theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
                 }
             }
         }

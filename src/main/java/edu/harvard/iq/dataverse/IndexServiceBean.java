@@ -1,41 +1,13 @@
 package edu.harvard.iq.dataverse;
 
-import edu.harvard.iq.dataverse.util.StringUtil;
-import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUserServiceBean;
-import edu.harvard.iq.dataverse.search.SearchFields;
 import edu.harvard.iq.dataverse.authorization.AuthenticationServiceBean;
+import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUserServiceBean;
 import edu.harvard.iq.dataverse.datavariable.DataVariable;
-import edu.harvard.iq.dataverse.search.IndexResponse;
-import edu.harvard.iq.dataverse.search.IndexableDataset;
-import edu.harvard.iq.dataverse.search.IndexableObject;
-import edu.harvard.iq.dataverse.search.SearchException;
-import edu.harvard.iq.dataverse.search.SearchPermissionsServiceBean;
-import edu.harvard.iq.dataverse.search.SolrIndexServiceBean;
+import edu.harvard.iq.dataverse.datavariable.VariableCategory;
+import edu.harvard.iq.dataverse.search.*;
 import edu.harvard.iq.dataverse.util.FileUtil;
+import edu.harvard.iq.dataverse.util.StringUtil;
 import edu.harvard.iq.dataverse.util.SystemConfig;
-import java.io.IOException;
-import java.sql.Timestamp;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Future;
-import java.util.logging.Logger;
-import javax.ejb.AsyncResult;
-import javax.ejb.EJB;
-import javax.ejb.EJBException;
-import javax.ejb.Stateless;
-import javax.ejb.TransactionAttribute;
-import static javax.ejb.TransactionAttributeType.REQUIRES_NEW;
-import javax.inject.Named;
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -45,6 +17,18 @@ import org.apache.solr.client.solrj.response.UpdateResponse;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.SolrInputDocument;
+
+import javax.ejb.*;
+import javax.inject.Named;
+import java.io.IOException;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.Future;
+import java.util.logging.Logger;
+
+import static javax.ejb.TransactionAttributeType.REQUIRES_NEW;
 
 @Stateless
 @Named
@@ -833,7 +817,7 @@ public class IndexServiceBean {
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE_FRIENDLY, fileMetadata.getDataFile().getFriendlyType());
                     datafileSolrInputDocument.addField(SearchFields.FILE_CONTENT_TYPE, fileMetadata.getDataFile().getContentType());
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE_SEARCHABLE, fileMetadata.getDataFile().getFriendlyType());
-                // For the file type facets, we have a property file that maps mime types 
+                    // For the file type facets, we have a property file that maps mime types
                     // to facet-friendly names; "application/fits" should become "FITS", etc.:
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE, FileUtil.getFacetFileType(fileMetadata.getDataFile()));
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE_SEARCHABLE, FileUtil.getFacetFileType(fileMetadata.getDataFile()));
@@ -851,13 +835,13 @@ public class IndexServiceBean {
 
                     datafileSolrInputDocument.addField(SearchFields.PARENT_NAME, parentDatasetTitle);
 
-                // If this is a tabular data file -- i.e., if there are data
+                    // If this is a tabular data file -- i.e., if there are data
                     // variables associated with this file, we index the variable 
                     // names and labels: 
                     if (fileMetadata.getDataFile().isTabularData()) {
                         List<DataVariable> variables = fileMetadata.getDataFile().getDataTable().getDataVariables();
                         for (DataVariable var : variables) {
-                        // Hard-coded search fields, for now: 
+                            // Hard-coded search fields, for now:
                             // TODO: eventually: review, decide how datavariables should
                             // be handled for indexing purposes. (should it be a fixed
                             // setup, defined in the code? should it be flexible? unlikely
@@ -872,6 +856,11 @@ public class IndexServiceBean {
                             if (var.getLabel() != null && !var.getLabel().equals("")) {
                                 datafileSolrInputDocument.addField(SearchFields.VARIABLE_LABEL, var.getLabel());
                             }
+                            final Collection<VariableCategory> categories = var.getCategories();
+                            if (categories != null )
+                                for (VariableCategory category : categories) {
+                                    datafileSolrInputDocument.addField(SearchFields.VARIABLE_VALUE, category.getValue());
+                                }
                         }
                     }
 
@@ -1002,7 +991,7 @@ public class IndexServiceBean {
     /**
      * @todo call this in fewer places, favoring
      * SolrIndexServiceBeans.deleteMultipleSolrIds instead to operate in batches
-     *
+     * <p/>
      * https://github.com/IQSS/dataverse/issues/142
      */
     public String removeSolrDocFromIndex(String doomed) {

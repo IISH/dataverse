@@ -7,32 +7,16 @@
 package edu.harvard.iq.dataverse.api;
 
 
-import edu.harvard.iq.dataverse.DataFile;
-import edu.harvard.iq.dataverse.DataFileServiceBean;
-import edu.harvard.iq.dataverse.Dataset;
-import edu.harvard.iq.dataverse.DatasetServiceBean;
-import edu.harvard.iq.dataverse.SearchServiceBean;
+import edu.harvard.iq.dataverse.*;
 import edu.harvard.iq.dataverse.export.DDIExportServiceBean;
-import edu.harvard.iq.dataverse.rserve.RemoteDataFrameService;
-import java.io.BufferedInputStream;
 
-import java.util.logging.Logger;
 import javax.ejb.EJB;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.Produces;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.NotFoundException;
-import javax.ws.rs.ServiceUnavailableException;
+import java.io.ByteArrayOutputStream;
+import java.util.logging.Logger;
 
 /*
     Custom API exceptions [NOT YET IMPLEMENTED]
@@ -153,10 +137,7 @@ public class Meta {
             throw new NotFoundException();
         }
         
-        String retValue = "";
-
-        ByteArrayOutputStream outStream = null;
-        outStream = new ByteArrayOutputStream();
+        final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
 
         try {
             ddiExportService.exportDataset(
@@ -164,18 +145,17 @@ public class Meta {
                     outStream,
                     exclude,
                     include);
-
-            retValue = outStream.toString();
-
         } catch (Exception e) {
             // For whatever reason we've failed to generate a partial 
             // metadata record requested. We simply return an empty string.
-            throw new ServiceUnavailableException();
+
+            //throw new ServiceUnavailableException();
+            logger.info("Ignoring exception: "+ e.getMessage());
         }
 
         response.setHeader("Access-Control-Allow-Origin", "*");
 
-        return retValue;
+        return outStream.toString();
     }
     
 }
