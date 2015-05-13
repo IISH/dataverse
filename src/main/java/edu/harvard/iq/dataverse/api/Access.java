@@ -6,54 +6,34 @@
 
 package edu.harvard.iq.dataverse.api;
 
-import edu.harvard.iq.dataverse.DataFile;
-import edu.harvard.iq.dataverse.FileMetadata;
-import edu.harvard.iq.dataverse.DataFileServiceBean;
-import edu.harvard.iq.dataverse.Dataset;
-import edu.harvard.iq.dataverse.DatasetVersion;
-import edu.harvard.iq.dataverse.DatasetVersionServiceBean;
-import edu.harvard.iq.dataverse.DatasetServiceBean;
-import edu.harvard.iq.dataverse.Dataverse;
-import edu.harvard.iq.dataverse.DataverseServiceBean;
-import edu.harvard.iq.dataverse.DataverseSession;
-import edu.harvard.iq.dataverse.DataverseTheme;
-import edu.harvard.iq.dataverse.PermissionServiceBean;
+import edu.harvard.iq.dataverse.*;
 import edu.harvard.iq.dataverse.authorization.Permission;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.GuestUser;
-import edu.harvard.iq.dataverse.dataaccess.OptionalAccessService;
 import edu.harvard.iq.dataverse.dataaccess.ImageThumbConverter;
+import edu.harvard.iq.dataverse.dataaccess.OptionalAccessService;
 import edu.harvard.iq.dataverse.datavariable.DataVariable;
 import edu.harvard.iq.dataverse.datavariable.VariableServiceBean;
 import edu.harvard.iq.dataverse.export.DDIExportServiceBean;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
 import edu.harvard.iq.dataverse.worldmapauth.WorldMapTokenServiceBean;
 
-import java.util.List;
-import java.util.logging.Logger;
 import javax.ejb.EJB;
-import java.io.InputStream;
+import javax.inject.Inject;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.UriInfo;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
-import javax.inject.Inject;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.HttpHeaders;
-import javax.ws.rs.core.UriInfo;
-
-
-import javax.servlet.http.HttpServletResponse;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
+import java.util.logging.Logger;
 
 /*
     Custom API exceptions [NOT YET IMPLEMENTED]
@@ -251,7 +231,120 @@ public class Access extends AbstractApiBean {
         return downloadInstance;
     }
     
-    
+
+    /*
+     * Variants of the Access API calls for retrieving datafile-level
+     * Metadata.
+    */
+
+
+    // Metadata format defaults to DDI:
+    @Path("datafile/{fileId}/metadata")
+    @GET
+    @Produces({"text/xml"})
+    public String tabularDatafileMetadata(@PathParam("fileId") Long fileId, @QueryParam("exclude") String exclude, @QueryParam("include") String include, @Context HttpHeaders header, @Context HttpServletResponse response) throws NotFoundException, ServiceUnavailableException /*, PermissionDeniedException, AuthorizationRequiredException*/ {
+        return tabularDatafileMetadataDDI(fileId, exclude, include, header, response);
+    }
+
+    /*
+     * This has been moved here, under /api/access, from the /api/meta hierarchy
+     * which we are going to retire.
+     */
+    @Path("datafile/{fileId}/metadata/ddi")
+    @GET
+    @Produces({"text/xml"})
+    public String tabularDatafileMetadataDDI(@PathParam("fileId") Long fileId, @QueryParam("exclude") String exclude, @QueryParam("include") String include, @Context HttpHeaders header, @Context HttpServletResponse response) throws NotFoundException, ServiceUnavailableException /*, PermissionDeniedException, AuthorizationRequiredException*/ {
+        String retValue = "";
+
+        DataFile dataFile = null;
+
+        //httpHeaders.add("Content-disposition", "attachment; filename=\"dataverse_files.zip\"");
+        //httpHeaders.add("Content-Type", "application/zip; name=\"dataverse_files.zip\"");
+        response.setHeader("Content-disposition", "attachment; filename=\"dataverse_files.zip\"");
+
+        dataFile = dataFileService.find(fileId);
+        if (dataFile == null) {
+            throw new NotFoundException();
+        }
+
+        String fileName = dataFile.getFileMetadata().getLabel().replaceAll("\\.tab$", "-ddi.xml");
+        response.setHeader("Content-disposition", "attachment; filename=\""+fileName+"\"");
+        response.setHeader("Content-Type", "application/xml; name=\""+fileName+"\"");
+
+        ByteArrayOutputStream outStream = null;
+        outStream = new ByteArrayOutputStream();
+
+        try {
+            ddiExportService.exportDataFile(
+                    fileId,
+                    outStream,
+                    exclude,
+                    include);
+
+            retValue = outStream.toString();
+
+        } catch (Exception e) {
+            // For whatever reason we've failed to generate a partial
+            // metadata record requested.
+            // We return Service Unavailable.
+            throw new ServiceUnavailableException();
+        }
+
+        response.setHeader("Access-Control-Allow-Origin", "*");
+
+        return retValue;
+    }
+
+    @Path("variable/{varId}/metadata/ddi")
+    @GET
+    @Produces({ "application/xml" })
+
+    public String dataVariableMetadataDDI(@PathParam("varId") Long varId, @QueryParam("exclude") String exclude, @QueryParam("include") String include, @Context HttpHeaders header, @Context HttpServletResponse response) /*throws NotFoundException, ServiceUnavailableException, PermissionDeniedException, AuthorizationRequiredException*/ {
+        String retValue = "";
+
+        ByteArrayOutputStream outStream = null;
+        try {
+            outStream = new ByteArrayOutputStream();
+
+            ddiExportService.exportDataVariable(
+                    varId,
+                    outStream,
+                    exclude,
+                    include);
+        } catch (Exception e) {
+            // For whatever reason we've failed to generate a partial
+            // metadata record requested. We simply return an empty string.
+            return retValue;
+        }
+
+        retValue = outStream.toString();
+
+        response.setHeader("Access-Control-Allow-Origin", "*");
+
+        return retValue;
+    }
+
+    /*
+     * "Preprocessed data" metadata format:
+     * (this was previously provided as a "format conversion" option of the
+     * file download form of the access API call)
+     */
+
+    @Path("datafile/{fileId}/metadata/preprocessed")
+    @GET
+    @Produces({"text/xml"})
+
+    public DownloadInstance tabularDatafileMetadataPreprocessed(@PathParam("fileId") Long fileId, @QueryParam("key") String apiToken, @Context UriInfo uriInfo, @Context HttpHeaders headers, @Context HttpServletResponse response) {
+        uriInfo.getQueryParameters().clear();
+        uriInfo.getQueryParameters().add("format", "prep");
+
+        return datafile(fileId, apiToken, uriInfo, headers, response);
+    }
+
+    /*
+     * API method for downloading zipped bundles of multiple files:
+    */
+
     
     @Path("datafiles/{fileIds}")
     @GET

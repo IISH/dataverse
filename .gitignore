@@ -1,3 +1,6 @@
+*.iml
+sync.sh
+start-stop.sh
 nb-configuration.xml
 target
 nbactions.xml
