@@ -8,11 +8,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.inject.Named;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.ws.rs.NotFoundException;
 
 /**
  * Service bean accessing a persistent hash map, used as settings in the application.
@@ -21,6 +23,8 @@ import javax.persistence.PersistenceContext;
 @Stateless
 @Named
 public class SettingsServiceBean {
+    
+    private static final Logger logger = Logger.getLogger(SettingsServiceBean.class.getCanonicalName());
     
     /**
      * Some convenient keys for the settings. Note that the setting's 
@@ -169,16 +173,17 @@ public class SettingsServiceBean {
         return get(key.toString());
     }
     
-
+    
     /**
      * Attempt to convert the value to an integer
      *  - Applicable for keys such as MaxFileUploadSizeInBytes
-     *
+     * 
+     * On failure (key not found or string not convertible to an int), returns null
      * @param key
-     * @return
+     * @return 
      */
     public Integer getValueForKeyAsInt(Key key){
-
+        
         String val = this.getValueForKey(key);
 
         if (val == null){
@@ -189,12 +194,12 @@ public class SettingsServiceBean {
             int valAsInt = Integer.parseInt(val);
             return valAsInt;
         } catch (NumberFormatException ex) {
-            //logger.info("Could not convert " + key + " from setting " + key.toString() + " to int.");
+            logger.warning("Incorrect setting.  Could not convert \"" + val + "\" from setting " + key.toString() + " to int.");
             return null;
         }
-
+        
     }
-
+    
     /**
      * Return the value stored, or the default value, in case no setting by that
      * name exists. The main difference between this method and the other {@code get()}s
@@ -256,5 +261,6 @@ public class SettingsServiceBean {
     public Set<Setting> listAll() {
         return new HashSet<>(em.createNamedQuery("Setting.findAll", Setting.class).getResultList());
     }
+    
     
 }

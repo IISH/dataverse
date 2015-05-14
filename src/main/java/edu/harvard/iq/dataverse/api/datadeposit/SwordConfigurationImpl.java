@@ -2,13 +2,12 @@ package edu.harvard.iq.dataverse.api.datadeposit;
 
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
 import edu.harvard.iq.dataverse.util.SystemConfig;
-import org.swordapp.server.SwordConfiguration;
-
-import javax.ejb.EJB;
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Logger;
+import javax.ejb.EJB;
+import org.swordapp.server.SwordConfiguration;
 
 public class SwordConfigurationImpl implements SwordConfiguration {
 
@@ -124,29 +123,15 @@ public class SwordConfigurationImpl implements SwordConfiguration {
 
     @Override
     public int getMaxUploadSize() {
+        
         int unlimited = -1;
 
         Integer maxUploadInBytes = settingsService.getValueForKeyAsInt(SettingsServiceBean.Key.MaxFileUploadSizeInBytes);
         if (maxUploadInBytes == null){
-            return unlimited;
+             return unlimited;
         }
 
         return maxUploadInBytes;
-        /*
-        String maxUploadInBytes = settingsService.getValueForKey(SettingsServiceBean.Key.MaxFileUploadSizeInBytes);
-        if (maxUploadInBytes != null) {
-            try {
-                int maxUploadSizeInBytes = Integer.parseInt(maxUploadInBytes);
-                return maxUploadSizeInBytes;
-            } catch (NumberFormatException ex) {
-                logger.info("Could not convert " + maxUploadInBytes + " from setting " + SettingsServiceBean.Key.MaxFileUploadSizeInBytes + " to int. Setting Data Deposit API max upload size limit to unlimited.");
-                return unlimited;
-            }
-        } else {
-            logger.fine("Setting " + SettingsServiceBean.Key.MaxFileUploadSizeInBytes + " is undefined. Setting Data Deposit API max upload size limit to unlimited.");
-            return unlimited;
-        }
-        */
     }
 
     @Override
