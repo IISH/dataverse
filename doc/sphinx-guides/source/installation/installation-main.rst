@@ -60,9 +60,19 @@ Set ``ShibEnabled`` to ``true`` to enable Shibboleth login.
 MaxFileUploadSizeInBytes
 ------------------------------
 
-Set `MaxFileUploadSizeInBytes` to "10737418240", for example, to limit the size of files uploaded to 10 GB.
+Set `MaxFileUploadSizeInBytes` to "2147483648", for example, to limit the size of files uploaded to 2 GB. 
+Notes:
+- For SWORD, this size is limited by the Java Integer.MAX_VALUE of 2,147,483,647. (see: https://github.com/IQSS/dataverse/issues/2169)
+- If the MaxFileUploadSizeInBytes is NOT set, uploads, including SWORD may be of unlimited size.
 
-``curl -X PUT -d 10737418240 http://localhost:8080/api/admin/settings/:MaxFileUploadSizeInBytes``
+``curl -X PUT -d 2147483648 http://localhost:8080/api/admin/settings/:MaxFileUploadSizeInBytes``
+
+GuidesBaseUrl
+-------------
+
+Set ``GuidesBaseUrl`` to override the default value "http://guides.dataverse.org".
+
+``curl -X PUT -d http://dataverse.example.edu http://localhost:8080/api/admin/settings/:GuidesBaseUrl``
 
 JVM Options
 +++++++++++

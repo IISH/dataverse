@@ -59,11 +59,6 @@ public class SystemConfig {
      * zip file upload.
      */
     private static final int defaultZipUploadFilesLimit = 1000; 
-
-    /**
-     * @todo Stop hard coding the same value in idpselect_config.js
-     */
-    public static final int APACHE_HTTPS_PORT = 8181;
     
     public String getSolrHostColonPort() {
         String solrHostColonPort = settingsService.getValueForKey(SettingsServiceBean.Key.SolrHostColonPort, saneDefaultForSolrHostColonPort);
@@ -143,7 +138,18 @@ public class SystemConfig {
         }
         return fqdn;
     }
-    
+
+    public String getGuidesBaseUrl() {
+        String saneDefault = "http://guides.dataverse.org";
+        String guidesBaseUrl = settingsService.getValueForKey(SettingsServiceBean.Key.GuidesBaseUrl, saneDefault);
+        return guidesBaseUrl + "/" + getGuidesLanguage();
+    }
+
+    private String getGuidesLanguage() {
+        String saneDefault = "en";
+        return saneDefault;
+    }
+
     /**
      * Download-as-zip size limit.
      * returns 0 if not specified; 
@@ -189,7 +195,6 @@ public class SystemConfig {
         return defaultZipUploadFilesLimit; 
     }
 
-    // curl -X PUT -d@/tmp/apptos.txt http://localhost:8080/api/s/settings/:ApplicationTermsOfUse
     public String getApplicationTermsOfUse() {
         String saneDefaultForAppTermsOfUse = "There are no Terms of Use for this Dataverse installation.";
         String appTermsOfUse = settingsService.getValueForKey(SettingsServiceBean.Key.ApplicationTermsOfUse, saneDefaultForAppTermsOfUse);
@@ -217,5 +222,12 @@ public class SystemConfig {
         boolean safeDefaultIfKeyNotFound = false;
         return settingsService.isTrueForKey(SettingsServiceBean.Key.Debug, safeDefaultIfKeyNotFound);
     }
+    
+    
+    public Long getMaxFileUploadSize(){
+
+         return settingsService.getValueForKeyAsLong(SettingsServiceBean.Key.MaxFileUploadSizeInBytes);
+     }
+    
 
 }
