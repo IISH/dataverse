@@ -7,11 +7,12 @@
 package edu.harvard.iq.dataverse;
 
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
+
+import javax.ejb.EJB;
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.net.URL;
-import javax.ejb.EJB;
 
 /**
  *
@@ -77,7 +78,7 @@ public class GlobalId implements java.io.Serializable {
         try {
             if (protocol.equals(DOI_PROTOCOL)){
                url = new URL("http://dx.doi.org/" + authority + "/" + identifier); 
-            } else if (protocol.equals(HDL_PROTOCOL)){
+            } else {
                url = new URL("http://hdl.handle.net/" + authority + "/" + identifier);  
             }           
         } catch (MalformedURLException ex) {
@@ -131,8 +132,8 @@ public class GlobalId implements java.io.Serializable {
             // example: hdl:1902.1/111012
             
             this.protocol = protocolPiece;  // hdl
-            this.authority = formatIdentifierString(pieces[0]);     // 1902.1
-            this.identifier = formatIdentifierString(pieces[1]);    // 111012            
+            this.authority = pieces[0];     // 1902.1
+            this.identifier = pieces[1];    // 111012
             return true;
                     
         }else if (pieces.length == 3 && protocolPiece.equals(DOI_PROTOCOL)){
@@ -142,58 +143,14 @@ public class GlobalId implements java.io.Serializable {
             // example: doi:10.5072/FK2/BYM3IW
             
             this.protocol = protocolPiece;  // doi
-            
-            String doiAuthority = formatIdentifierString(pieces[0]) + doiSeparator + formatIdentifierString(pieces[1]); // "10.5072/FK2"
-            if (this.checkDOIAuthority(doiAuthority)){
-                this.authority = doiAuthority;
-            } else {
-                return false;
-            }
-                        
-            this.identifier = formatIdentifierString(pieces[2]); // "BYM3IW"
+            this.authority = pieces[0] + doiSeparator + pieces[1]; // "10.5072/FK2"
+            this.identifier = pieces[2]; // "BYM3IW"
             return true;
         }
         
         return false;
     }
 
-    
-    private String formatIdentifierString(String str){
-        
-        if (str == null){
-            return null;
-        }
-        return str.replaceAll("\\s+","").replace(";", "");   // remove whitespace
-        
-        /*
-        < 	(%3C)
-> 	(%3E)
-{ 	(%7B)
-} 	(%7D)
-^ 	(%5E)
-[ 	(%5B)
-] 	(%5D)
-` 	(%60)
-| 	(%7C)
-\ 	(%5C)
-+
-        */
-        // http://www.doi.org/doi_handbook/2_Numbering.html
-    }
-    
-    
-    private boolean checkDOIAuthority(String doiAuthority){
-        
-        if (doiAuthority==null){
-            return false;
-        }
-        
-        if (!(doiAuthority.startsWith("10."))){
-            return false;
-        }
-        
-        return true;
-    }
-    
+
     
 }
