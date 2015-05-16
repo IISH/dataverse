@@ -4,6 +4,8 @@ import com.ocpsoft.pretty.PrettyContext;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Locale;
+import java.util.ResourceBundle;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
@@ -59,7 +61,15 @@ public class SystemConfig {
      * zip file upload.
      */
     private static final int defaultZipUploadFilesLimit = 1000; 
-    
+
+    /**
+     * @todo Reconcile with getApplicationVersion on DataverseServiceBean.java
+     * which we'd like to move to this class.
+     */
+    public String getVersion() {
+        return BundleUtil.getStringFromBundle("version.number", null, ResourceBundle.getBundle("VersionNumber", Locale.US));
+    }
+
     public String getSolrHostColonPort() {
         String solrHostColonPort = settingsService.getValueForKey(SettingsServiceBean.Key.SolrHostColonPort, saneDefaultForSolrHostColonPort);
         return solrHostColonPort;
@@ -195,6 +205,38 @@ public class SystemConfig {
         return defaultZipUploadFilesLimit; 
     }
 
+    public long getThumbnailSizeLimitImage() {
+        return getThumbnailSizeLimit("Image");
+    } 
+    
+    public long getThumbnailSizeLimitPDF() {
+        return getThumbnailSizeLimit("PDF");
+    }
+    
+    public long getThumbnailSizeLimit(String type) {
+        String option = null; 
+        if ("Image".equals(type)) {
+            option = settingsService.getValueForKey(SettingsServiceBean.Key.ThumbnailSizeLimitImage);
+        } else if ("PDF".equals(type)) {
+            option = settingsService.getValueForKey(SettingsServiceBean.Key.ThumbnailSizeLimitPDF);
+        }
+        Long limit = null; 
+        
+        if (option != null && !option.equals("")) {
+            try {
+                limit = new Long(option);
+            } catch (NumberFormatException nfe) {
+                limit = null; 
+            }
+        }
+        
+        if (limit != null) {
+            return limit.longValue();
+        }
+        
+        return 0; 
+    }
+    
     public String getApplicationTermsOfUse() {
         String saneDefaultForAppTermsOfUse = "There are no Terms of Use for this Dataverse installation.";
         String appTermsOfUse = settingsService.getValueForKey(SettingsServiceBean.Key.ApplicationTermsOfUse, saneDefaultForAppTermsOfUse);
