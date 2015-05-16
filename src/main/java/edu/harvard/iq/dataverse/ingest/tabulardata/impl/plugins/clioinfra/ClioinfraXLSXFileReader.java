@@ -237,6 +237,9 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
                 VariableCategory category = new VariableCategory();
                 category.setValue(categoryName);
                 category.setFrequency(Double.valueOf(frequency));
+
+                 /* cross-link the variable and category to each other: */
+                category.setDataVariable(dataVariable);
                 dataVariable.getCategories().add(category);
             }
 

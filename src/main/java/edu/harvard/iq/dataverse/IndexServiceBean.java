@@ -817,7 +817,7 @@ public class IndexServiceBean {
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE_FRIENDLY, fileMetadata.getDataFile().getFriendlyType());
                     datafileSolrInputDocument.addField(SearchFields.FILE_CONTENT_TYPE, fileMetadata.getDataFile().getContentType());
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE_SEARCHABLE, fileMetadata.getDataFile().getFriendlyType());
-                    // For the file type facets, we have a property file that maps mime types
+                // For the file type facets, we have a property file that maps mime types
                     // to facet-friendly names; "application/fits" should become "FITS", etc.:
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE, FileUtil.getFacetFileType(fileMetadata.getDataFile()));
                     datafileSolrInputDocument.addField(SearchFields.FILE_TYPE_SEARCHABLE, FileUtil.getFacetFileType(fileMetadata.getDataFile()));
@@ -835,13 +835,13 @@ public class IndexServiceBean {
 
                     datafileSolrInputDocument.addField(SearchFields.PARENT_NAME, parentDatasetTitle);
 
-                    // If this is a tabular data file -- i.e., if there are data
+                // If this is a tabular data file -- i.e., if there are data
                     // variables associated with this file, we index the variable 
                     // names and labels: 
                     if (fileMetadata.getDataFile().isTabularData()) {
                         List<DataVariable> variables = fileMetadata.getDataFile().getDataTable().getDataVariables();
                         for (DataVariable var : variables) {
-                            // Hard-coded search fields, for now:
+                        // Hard-coded search fields, for now:
                             // TODO: eventually: review, decide how datavariables should
                             // be handled for indexing purposes. (should it be a fixed
                             // setup, defined in the code? should it be flexible? unlikely
@@ -991,7 +991,7 @@ public class IndexServiceBean {
     /**
      * @todo call this in fewer places, favoring
      * SolrIndexServiceBeans.deleteMultipleSolrIds instead to operate in batches
-     * <p/>
+     *
      * https://github.com/IQSS/dataverse/issues/142
      */
     public String removeSolrDocFromIndex(String doomed) {
