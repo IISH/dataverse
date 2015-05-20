@@ -82,9 +82,56 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
     private static final Logger dbglog = Logger.getLogger(ClioinfraXLSXFileReader.class.getPackage().getName());
     private static char DELIMITER_CHAR = '\t';
     private static int VAR_QUANTITY = 7;
+    private static LinkedHashMap<String, Integer> vocabulary = null;
+
 
     public ClioinfraXLSXFileReader(TabularDataFileReaderSpi originator) {
         super(originator);
+
+        if (vocabulary == null) {
+            vocabulary = new LinkedHashMap<>();
+            vocabulary.put("Biological Standards of Living", 277);
+            vocabulary.put("Height", 295);
+            vocabulary.put("Infant mortality", 76);
+            vocabulary.put("Demography", 275);
+            vocabulary.put("Female Life Expectancy at birth", 96);
+            vocabulary.put("Life Expectancy at Birth (Total)", 228);
+            vocabulary.put("Male Life Expectancy at Birth", 249);
+            vocabulary.put("Finance", 273);
+            vocabulary.put("Exchange Rates to US Dollar", 142);
+            vocabulary.put("Long-Term Government Bond Yield", 144);
+            vocabulary.put("Total Gross Central Government Debt as a Percentage of GDP", 231);
+            vocabulary.put("Geography and Sustainability", 85);
+            vocabulary.put("CO2 Emissions per Capita", 301);
+            vocabulary.put("Cattle per Capita", 106);
+            vocabulary.put("Cropland per Capita", 272);
+            vocabulary.put("Goats per Capita", 299);
+            vocabulary.put("Pasture per Capita", 232);
+            vocabulary.put("Pigs per Capita", 31);
+            vocabulary.put("SO2 Emissions per Capita", 40);
+            vocabulary.put("Sheep per Capita", 264);
+            vocabulary.put("Total CO2 Emissions", 112);
+            vocabulary.put("Total cattle", 87);
+            vocabulary.put("Total Cropland", 137);
+            vocabulary.put("Total Number of Goats", 302);
+            vocabulary.put("Total Number of Pigs", 34);
+            vocabulary.put("Total Number of Sheep", 47);
+            vocabulary.put("Total Pasture", 281);
+            vocabulary.put("Total population", 116);
+            vocabulary.put("Total SO2 Emissions", 201);
+            vocabulary.put("Total Urban Population", 100);
+            vocabulary.put("Human Capital", 265);
+            vocabulary.put("Average Years of Education", 269);
+            vocabulary.put("Educational Inequality Gini Coefficient", 253);
+            vocabulary.put("Institutions", 266);
+            vocabulary.put("Armed conflicts (internal)", 262);
+            vocabulary.put("Armed conflicts (international)", 5);
+            vocabulary.put("Polity2", 199);
+            vocabulary.put("National Accounts", 246);
+            vocabulary.put("GDP Per Capita", 288);
+            vocabulary.put("Prices and Wages", 291);
+            vocabulary.put("Inflation", 259);
+        }
     }
 
     private void init() throws IOException {
@@ -458,10 +505,15 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
 
                     // The indicator name at A1
                     if (indicator == null) {
-                        indicator = cellContents;
-                        // Assert indicator value.
-                        indicatortid = 1; // To be determined
-                        return;
+                        if (vocabulary.containsKey(cellContents)) {
+                            indicator = cellContents;
+                            indicatortid = vocabulary.get(cellContents);
+                        } else {
+                            indicator = cellContents;
+                            indicatortid = 1;
+//                            throw new SAXException("Unknown indicator value: " + cellContents);
+                            return;
+                        }
                     }
 
                     // The unit at A2 or the code at A3. Empty rows are not detected here.
@@ -526,7 +578,7 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
                     variableHeader = false;
                 } else {
                     dbglog.fine("row mode;");
-                    // go through the values and make an educated guess about the 
+                    // go through the values and make an educated guess about the
                     // data types:
 
                     for (int i = 0; i < dataRow.length; i++) {

@@ -50,7 +50,6 @@ import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.sav.SAVFileReade
 import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.xlsx.XLSXFileReader;
 import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.xlsx.XLSXFileReaderSpi;
 import edu.harvard.iq.dataverse.util.*;
-import org.apache.commons.io.FileUtils;
 import org.dataverse.unf.UNFUtil;
 import org.dataverse.unf.UnfException;
 import org.primefaces.push.PushContext;
@@ -1527,7 +1526,7 @@ public class IngestServiceBean {
     }
 
     public static TabularDataFileReader getTabDataReaderByMimeType(DataFile dataFile) {
-        if (  dataFile.getFileMetadata().getLabel().endsWith(".clioinfra.xlsx")) {
+        if ( dataFile.getFileMetadata().getLabel().endsWith(".clioinfra.xlsx")) {
            return new ClioinfraXLSXFileReader(new ClioinfraXLSXFileReaderSpi());
         }  else return getTabDataReaderByMimeType(dataFile.getContentType()) ;
     }
