@@ -17,42 +17,31 @@
  Developed at the Institute for Quantitative Social Science, Harvard University.
  Version 3.0.
  */
-package edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.xlsx;
-
-
-import java.io.*;
-import java.io.FileReader;
-import java.util.logging.*;
-import java.util.*;
-
-import javax.inject.Inject;
+package edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.clioinfra;
 
 
 import edu.harvard.iq.dataverse.DataTable;
 import edu.harvard.iq.dataverse.datavariable.DataVariable;
-
+import edu.harvard.iq.dataverse.datavariable.VariableCategory;
 import edu.harvard.iq.dataverse.ingest.tabulardata.TabularDataFileReader;
-import edu.harvard.iq.dataverse.ingest.tabulardata.spi.TabularDataFileReaderSpi;
 import edu.harvard.iq.dataverse.ingest.tabulardata.TabularDataIngest;
-import javax.naming.Context;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
-
+import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.xlsx.XLSXFileReaderSpi;
+import edu.harvard.iq.dataverse.ingest.tabulardata.spi.TabularDataFileReaderSpi;
 import org.apache.commons.lang.StringUtils;
-
-import org.apache.poi.xssf.eventusermodel.XSSFReader;
-import org.apache.poi.xssf.usermodel.XSSFRichTextString;
-import org.apache.poi.xssf.model.SharedStringsTable;
 import org.apache.poi.openxml4j.opc.OPCPackage;
-import org.xml.sax.Attributes;
-import org.xml.sax.ContentHandler;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
-import org.xml.sax.XMLReader;
+import org.apache.poi.xssf.eventusermodel.XSSFReader;
+import org.apache.poi.xssf.model.SharedStringsTable;
+import org.apache.poi.xssf.usermodel.XSSFRichTextString;
+import org.xml.sax.*;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.logging.Logger;
 
 
 /**
@@ -83,7 +72,6 @@ public class XLSXFileReader extends TabularDataFileReader {
      * Reads an XLSX file, converts it into a dataverse DataTable.
      *
      * @param stream a <code>BufferedInputStream</code>.
-     * @param ignored
      * @return an <code>TabularDataIngest</code> object
      * @throws java.io.IOException if a reading error occurs.
      */
@@ -125,7 +113,7 @@ public class XLSXFileReader extends TabularDataFileReader {
         String[] caseRow = new String[varQnty];
         String[] valueTokens;
 
-        
+        final LinkedHashMap<Integer, HashMap<String, Integer>> variableCategories = new LinkedHashMap(varQnty);
         while ((line = secondPassReader.readLine()) != null) {
             // chop the line:
             line = line.replaceFirst("[\r\n]*$", "");
@@ -141,6 +129,19 @@ public class XLSXFileReader extends TabularDataFileReader {
             }
         
             for (int i = 0; i < varQnty; i++) {
+
+                HashMap<String, Integer> categories = variableCategories.get(i);
+                if (categories == null) {
+                    categories = new HashMap();
+                    variableCategories.put(i, categories);
+                }
+
+                if (categories.containsKey(valueTokens[i])) {
+                    categories.put(valueTokens[i], categories.get(valueTokens[i]) + 1);
+                } else
+                    categories.put(valueTokens[i], 1);
+
+
                 if (dataTable.getDataVariables().get(i).isTypeNumeric()) {
                     if (valueTokens[i] == null || valueTokens[i].equals(".") || valueTokens[i].equals("") || valueTokens[i].equalsIgnoreCase("NA")) {
                         // Missing value - represented as an empty string in 
@@ -201,6 +202,23 @@ public class XLSXFileReader extends TabularDataFileReader {
 
         secondPassReader.close();
         finalWriter.close();
+
+        // We set the variableCategories.
+        for (int i = 0; i < varQnty; i++) {
+            final DataVariable dataVariable = dataTable.getDataVariables().get(i);
+            final HashMap<String, Integer> categories = variableCategories.get(i);
+            for (String categoryName : categories.keySet()) {
+                final int frequency = categories.get(categoryName);
+                VariableCategory category = new VariableCategory();
+                category.setValue(categoryName);
+                category.setFrequency(Double.valueOf(frequency));
+                 /* cross-link the variable and category to each other: */
+                category.setDataVariable(dataVariable);
+                dataVariable.getCategories().add(category);
+            }
+
+        }
+        variableCategories.clear();
         
         if (dataTable.getCaseQuantity().intValue() != lineCounter) {
             throw new IOException("Mismatch between line counts in first and final passes!");
@@ -367,14 +385,23 @@ public class XLSXFileReader extends TabularDataFileReader {
             cellContents = "";
         }
 
+        /**
+         * getColumnCount
+         *
+         * Return the column number based on a A-Z for the first 26 columns; and then AA-ZZ for the remaining
+         * 26-to-the-power-of-two other columns.
+         *
+         * @param columnTag The column tag, such as A or AA
+         * @return the column index
+         */
         private int getColumnCount(String columnTag) {
             int count = -1;
-            if (columnTag.length() == 1 && columnTag.matches("[A-Z]")) {
-                count = columnTag.charAt(0) - 'A';
-            } else {
-                dbglog.warning("Unsupported column index tag: "+columnTag);
+            if (columnTag.matches("[A-Z]{1,2}")) {
+                final int first = (columnTag.length() == 1) ? 0 : 1 + columnTag.charAt(0) - 'A'; // If the length = 1, we treat it as 0A
+                final int second = (columnTag.length() == 1) ? columnTag.charAt(0) - 'A' : columnTag.charAt(1) - 'A';
+                count = 26 * first + second;
             }
-            
+
             return count;
         }
         
