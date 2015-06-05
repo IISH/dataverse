@@ -35,7 +35,6 @@ import edu.harvard.iq.dataverse.ingest.metadataextraction.impl.plugins.fits.FITS
 import edu.harvard.iq.dataverse.ingest.tabulardata.TabularDataFileReader;
 import edu.harvard.iq.dataverse.ingest.tabulardata.TabularDataIngest;
 import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.clioinfra.ClioinfraXLSXFileReader;
-import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.clioinfra.ClioinfraXLSXFileReaderSpi;
 import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.csv.CSVFileReader;
 import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.csv.CSVFileReaderSpi;
 import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.dta.DTA117FileReader;
@@ -1526,8 +1525,9 @@ public class IngestServiceBean {
     }
 
     public static TabularDataFileReader getTabDataReaderByMimeType(DataFile dataFile) {
+
         if ( dataFile.getFileMetadata().getLabel().endsWith(".clioinfra.xlsx")) {
-           return new ClioinfraXLSXFileReader(new ClioinfraXLSXFileReaderSpi());
+           return new ClioinfraXLSXFileReader(new XLSXFileReaderSpi());
         }  else return getTabDataReaderByMimeType(dataFile.getContentType()) ;
     }
     

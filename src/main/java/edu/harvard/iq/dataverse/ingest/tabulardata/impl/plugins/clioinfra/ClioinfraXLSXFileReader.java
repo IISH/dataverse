@@ -25,6 +25,7 @@ import edu.harvard.iq.dataverse.datavariable.DataVariable;
 import edu.harvard.iq.dataverse.datavariable.VariableCategory;
 import edu.harvard.iq.dataverse.ingest.tabulardata.TabularDataFileReader;
 import edu.harvard.iq.dataverse.ingest.tabulardata.TabularDataIngest;
+import edu.harvard.iq.dataverse.ingest.tabulardata.impl.plugins.xlsx.XLSXFileReaderSpi;
 import edu.harvard.iq.dataverse.ingest.tabulardata.spi.TabularDataFileReaderSpi;
 import org.apache.commons.lang.StringUtils;
 import org.apache.poi.openxml4j.opc.OPCPackage;
@@ -82,6 +83,13 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
     private static final Logger dbglog = Logger.getLogger(ClioinfraXLSXFileReader.class.getPackage().getName());
     private static char DELIMITER_CHAR = '\t';
     private static int VAR_QUANTITY = 7;
+    private static int COLUMN_INDICATOR = 0;
+    private static int COLUMN_INDICATOR_ID = 1;
+    private static int COLUMN_UNIT = 2;
+    private static int COLUMN_COUNTRY_CODE = 3;
+    private static int COLUMN_COUNTRY_ID = 4;
+    private static int COLUMN_YEAR = 5;
+    private static int COLUMN_VALUE = 6;
     private static LinkedHashMap<String, Integer> vocabulary = null;
 
 
@@ -202,17 +210,20 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
 
             for (int i = 0; i < VAR_QUANTITY; i++) {
 
+                // We only create categories for the country and year.
                 HashMap<String, Integer> categories = variableCategories.get(i);
-                if (categories == null) {
-                    categories = new HashMap();
-                    variableCategories.put(i, categories);
+
+                if (addCategory(i)) {
+                    if (categories == null) {
+                        categories = new HashMap();
+                        variableCategories.put(i, categories);
+                    }
+
+                    if (categories.containsKey(valueTokens[i])) {
+                        categories.put(valueTokens[i], categories.get(valueTokens[i]) + 1);
+                    } else
+                        categories.put(valueTokens[i], 1);
                 }
-
-                if (categories.containsKey(valueTokens[i])) {
-                    categories.put(valueTokens[i], categories.get(valueTokens[i]) + 1);
-                } else
-                    categories.put(valueTokens[i], 1);
-
 
                 if (dataTable.getDataVariables().get(i).isTypeNumeric()) {
                     if (valueTokens[i] == null || valueTokens[i].equals(".") || valueTokens[i].isEmpty() || valueTokens[i].equalsIgnoreCase("NA")) {
@@ -277,19 +288,20 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
 
         // We set the variableCategories.
         for (int i = 0; i < VAR_QUANTITY; i++) {
-            final DataVariable dataVariable = dataTable.getDataVariables().get(i);
-            final HashMap<String, Integer> categories = variableCategories.get(i);
-            for (String categoryName : categories.keySet()) {
-                final int frequency = categories.get(categoryName);
-                VariableCategory category = new VariableCategory();
-                category.setValue(categoryName);
-                category.setFrequency(Double.valueOf(frequency));
+            if (addCategory(i)) {
+                final DataVariable dataVariable = dataTable.getDataVariables().get(i);
+                final HashMap<String, Integer> categories = variableCategories.get(i);
+                for (String categoryName : categories.keySet()) {
+                    final int frequency = categories.get(categoryName);
+                    VariableCategory category = new VariableCategory();
+                    category.setValue(categoryName);
+                    category.setFrequency(Double.valueOf(frequency));
 
                  /* cross-link the variable and category to each other: */
-                category.setDataVariable(dataVariable);
-                dataVariable.getCategories().add(category);
+                    category.setDataVariable(dataVariable);
+                    dataVariable.getCategories().add(category);
+                }
             }
-
         }
         variableCategories.clear();
 
@@ -317,6 +329,14 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
 
         return ingesteddata;
 
+    }
+
+    private static boolean addCategory(int i) {
+        return (
+                i == COLUMN_INDICATOR ||
+                        i == COLUMN_COUNTRY_CODE ||
+                        i == COLUMN_YEAR
+        );
     }
 
     public void processSheet(String filename, DataTable dataTable, PrintWriter tempOut) throws Exception {
@@ -633,7 +653,7 @@ public class ClioinfraXLSXFileReader extends TabularDataFileReader {
     }
 
     public static void main(String[] args) throws Exception {
-        ClioinfraXLSXFileReader testReader = new ClioinfraXLSXFileReader(new ClioinfraXLSXFileReaderSpi());
+        ClioinfraXLSXFileReader testReader = new ClioinfraXLSXFileReader(new XLSXFileReaderSpi());
         DataTable dataTable;
 
         BufferedInputStream xlsxInputStream = new BufferedInputStream(new FileInputStream(new File(args[0])));

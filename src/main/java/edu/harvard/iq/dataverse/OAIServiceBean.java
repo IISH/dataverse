@@ -1,13 +1,14 @@
 package edu.harvard.iq.dataverse;
 
+import edu.harvard.iq.dataverse.authorization.groups.Group;
 import edu.harvard.iq.dataverse.authorization.groups.GroupServiceBean;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.GuestUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
 import edu.harvard.iq.dataverse.search.SearchFields;
-import edu.harvard.iq.dataverse.util.JsfHelper;
 import edu.harvard.iq.dataverse.util.SystemConfig;
 import org.apache.solr.client.solrj.SolrQuery;
+import org.apache.solr.client.solrj.SolrRequest;
 import org.apache.solr.client.solrj.SolrServer;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.impl.HttpSolrServer;
@@ -16,6 +17,7 @@ import org.apache.solr.client.solrj.response.QueryResponse;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.inject.Named;
+import java.util.Set;
 import java.util.logging.Logger;
 
 @Stateless
@@ -28,29 +30,13 @@ public class OAIServiceBean {
      * We're trying to make the OAIServiceBean lean, mean, and fast, with as
      * few injections of EJBs as possible.
      */
-    /**
-     * @todo Can we do without the DatasetFieldServiceBean?
-     */
-    @EJB
-    DvObjectServiceBean dvObjectService;
-    @EJB
-    DataverseServiceBean dataverseService;
-    @EJB
-    DatasetServiceBean datasetService;
-    @EJB
-    DatasetVersionServiceBean datasetVersionService;
-    @EJB
-    DataFileServiceBean dataFileService;
-    @EJB
-    DatasetFieldServiceBean datasetFieldService;
-    @EJB
-    GroupServiceBean groupService;
     @EJB
     SystemConfig systemConfig;
 
-    public static final JsfHelper JH = new JsfHelper();
+    @EJB
+    GroupServiceBean groupService;
 
-    public String request(User user, String verb, String identifier, String from, String until, String set, String metadataPrefix) {
+    public String request(User user, Dataverse dataverse, String verb, String identifier, String from, String until, String set, String metadataPrefix) throws SolrServerException {
 
         String publicOnly = "{!join from=" + SearchFields.DEFINITION_POINT + " to=id}" + SearchFields.DISCOVERABLE_BY + ":(" + IndexServiceBean.getPublicGroupString() + ")";
         // initialize to public only to be safe
@@ -66,45 +52,69 @@ public class OAIServiceBean {
             permissionFilterQuery = publicPlusUserPrivateGroup;
             logger.fine(permissionFilterQuery);
 
+            String groupsFromProviders = "";
+            Set<Group> groups = groupService.groupsFor(au, dataverse);
+            StringBuilder sb = new StringBuilder();
+            for (Group group : groups) {
+                logger.fine("found group " + group.getIdentifier() + " with alias " + group.getAlias());
+                String groupAlias = group.getAlias();
+                if (groupAlias != null && !groupAlias.isEmpty()) {
+                    sb.append(" OR ");
+                    // i.e. group_shib/2
+                    sb.append(IndexServiceBean.getGroupPrefix()).append(groupAlias);
+                }
+                groupsFromProviders = sb.toString();
+            }
+
+            logger.fine(groupsFromProviders);
+            publicPlusUserPrivateGroup = "{!join from=" + SearchFields.DEFINITION_POINT + " to=id}" + SearchFields.DISCOVERABLE_BY + ":(" + IndexServiceBean.getPublicGroupString() + " OR " + IndexServiceBean.getGroupPerUserPrefix() + au.getId() + groupsFromProviders + ")";
+
+            permissionFilterQuery = publicPlusUserPrivateGroup;
+
             if (au.isSuperuser()) {
                 // dangerous because this user will be able to see
                 // EVERYTHING in Solr with no regard to permissions!
-                String dangerZoneNoSolrJoin = null;
-                permissionFilterQuery = dangerZoneNoSolrJoin;
+                permissionFilterQuery = null;
             }
 
         } else {
             logger.info("Should never reach here. A User must be an AuthenticatedUser or a Guest");
         }
 
-        final String baseURL = "http://" + systemConfig.getSolrHostColonPort() + "/solr/oai";
-        final SolrQuery query = new SolrQuery();
+        final SolrQuery query = new SolrQuery().setRequestHandler("/oai");
 
-        if (isSet(verb))
+        if (isSet(verb)) {
             query.add("verb", verb);
-        if (isSet(identifier))
+        }
+        if (isSet(identifier)) {
             query.add("identifier", identifier);
-        if (isSet(from))
+        }
+        if (isSet(from)) {
             query.add("from", from);
-        if (isSet(until))
+        }
+        if (isSet(until)) {
             query.add("until", until);
-        if (isSet((set)))
+        }
+        if (isSet((set))) {
             query.add("set", set);
-        if (isSet(metadataPrefix))
+        }
+        if (isSet(metadataPrefix)) {
             query.add("metadataPrefix", metadataPrefix);
-        if (isSet(permissionFilterQuery))
+        }
+        if (isSet(permissionFilterQuery)) {
             query.addFilterQuery(permissionFilterQuery);
-
-        final SolrServer solrServer = new HttpSolrServer(baseURL);
-        QueryResponse queryResponse;
-        try {
-            queryResponse = solrServer.query(query);
-        } catch (SolrServerException e) {
-            logger.fine(e.getMessage());
-            return null;
         }
 
-        return queryResponse.toString();
+        // Only look at datasets and Published material
+        // We could place these in the static query element in solrconfig.xml/oai
+        query.addFilterQuery("dvObjectType", "datasets");
+        query.addFilterQuery("publicationStatus", "Published");
+
+
+        final String baseURL = "http://" + systemConfig.getSolrHostColonPort() + "/solr";
+        final SolrServer solrServer = new HttpSolrServer(baseURL);
+        final QueryResponse response = solrServer.query(query, SolrRequest.METHOD.GET);
+        return response.toString();
     }
 
     private static boolean isSet(String s) {

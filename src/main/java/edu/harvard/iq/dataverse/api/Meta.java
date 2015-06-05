@@ -131,12 +131,12 @@ public class Meta {
     @GET
     @Produces({"application/xml"})
     public String dataset(@PathParam("datasetId") Long datasetId, @QueryParam("exclude") String exclude, @QueryParam("include") String include, @Context HttpHeaders header, @Context HttpServletResponse response) throws NotFoundException /*, ServiceUnavailableException, PermissionDeniedException, AuthorizationRequiredException*/ {
- 
+
         Dataset dataset = datasetService.find(datasetId);
         if (dataset == null) {
             throw new NotFoundException();
         }
-        
+
         final ByteArrayOutputStream outStream = new ByteArrayOutputStream();
 
         try {
@@ -146,7 +146,7 @@ public class Meta {
                     exclude,
                     include);
         } catch (Exception e) {
-            // For whatever reason we've failed to generate a partial 
+            // For whatever reason we've failed to generate a partial
             // metadata record requested. We simply return an empty string.
 
             //throw new ServiceUnavailableException();

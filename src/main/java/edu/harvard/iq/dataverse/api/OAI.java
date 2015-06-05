@@ -1,10 +1,12 @@
 package edu.harvard.iq.dataverse.api;
 
+import edu.harvard.iq.dataverse.DataverseServiceBean;
 import edu.harvard.iq.dataverse.OAIServiceBean;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.GuestUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
+import org.apache.solr.client.solrj.SolrServerException;
 
 import javax.ejb.EJB;
 import javax.ws.rs.*;
@@ -14,13 +16,16 @@ import java.util.logging.Logger;
  * User-facing documentation:
  * <a href="http://guides.dataverse.org/en/latest/api/search.html">http://guides.dataverse.org/en/latest/api/search.html</a>
  */
-@Path("search")
+@Path("oai")
 public class OAI extends AbstractApiBean {
 
     private static final Logger logger = Logger.getLogger(OAI.class.getCanonicalName());
 
     @EJB
     OAIServiceBean oaiService;
+
+    @EJB
+    DataverseServiceBean dataverseService;
 
     @GET
     @Produces({"text/xml"})
@@ -36,13 +41,17 @@ public class OAI extends AbstractApiBean {
 
         User user;
         try {
-            user = getUser(key);
+            user = (key == null) ? new GuestUser() : getUser(key);
         } catch (WrappedResponse ex) {
             throw new ServiceUnavailableException(ex.getMessage());
         }
 
 
-        return oaiService.request(user, verb, identifier, from, until, set, metadataPrefix);
+        try {
+            return oaiService.request(user,  dataverseService.findRootDataverse(), verb, identifier, from, until, set, metadataPrefix);
+        } catch (SolrServerException ex) {
+            throw new ServiceUnavailableException(ex.getMessage());
+        }
     }
 
     private User getUser(String key) throws WrappedResponse {
