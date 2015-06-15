@@ -25,9 +25,6 @@
 
     <requestHandler name="/oai" default="false" class="org.socialhistoryservices.api.oai.OAIRequestHandler">
 
-        <!-- WT is the key for the queryResponseWriter (see below) -->
-        <str name="wt">oai</str>
-
         <!-- the oai_home is a path relative to the solr.home directory.
                      The default is [solr_home]/oai
                              In this folder the xsl stylesheets, ListMetadataPrefix.xml, Identify.xml and ListSets.xsl must be placed.
@@ -85,9 +82,7 @@
                                                        will be appended by the OAI2 handler so:
                                                                [the OAI2 query here] AND ( (visible:true AND status:available) OR showall:true )
                                                                         -->
-        <!--
-                         <str name="static_query"/>
-                                 -->
+                         <str name="static_query">dvObjectType:datasets AND publicationStatus:Published</str>
 
         <!--
                      The enable_filter_query is set to true or false ( false is the default ).

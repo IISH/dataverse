@@ -6,10 +6,11 @@ import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.GuestUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
-import org.apache.solr.client.solrj.SolrServerException;
 
 import javax.ejb.EJB;
+import javax.servlet.http.HttpServletResponse;
 import javax.ws.rs.*;
+import javax.ws.rs.core.Context;
 import java.util.logging.Logger;
 
 /**
@@ -36,7 +37,8 @@ public class OAI extends AbstractApiBean {
             @QueryParam("until") final String until,
             @QueryParam("set") final String set,
             @QueryParam("metadataPrefix") final String metadataPrefix,
-            @QueryParam("key") final String key
+            @QueryParam("key") final String key,
+            @Context HttpServletResponse response
     ) {
 
         User user;
@@ -46,12 +48,8 @@ public class OAI extends AbstractApiBean {
             throw new ServiceUnavailableException(ex.getMessage());
         }
 
-
-        try {
-            return oaiService.request(user,  dataverseService.findRootDataverse(), verb, identifier, from, until, set, metadataPrefix);
-        } catch (SolrServerException ex) {
-            throw new ServiceUnavailableException(ex.getMessage());
-        }
+        response.setHeader("Access-Control-Allow-Origin", "*");
+        return oaiService.request(user, key, dataverseService.findRootDataverse(), verb, identifier, from, until, set, metadataPrefix);
     }
 
     private User getUser(String key) throws WrappedResponse {

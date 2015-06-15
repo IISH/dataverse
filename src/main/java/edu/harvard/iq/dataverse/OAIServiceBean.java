@@ -7,24 +7,41 @@ import edu.harvard.iq.dataverse.authorization.users.GuestUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
 import edu.harvard.iq.dataverse.search.SearchFields;
 import edu.harvard.iq.dataverse.util.SystemConfig;
-import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrRequest;
-import org.apache.solr.client.solrj.SolrServer;
-import org.apache.solr.client.solrj.SolrServerException;
-import org.apache.solr.client.solrj.impl.HttpSolrServer;
-import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
+import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.commons.httpclient.params.HttpMethodParams;
+import org.apache.solr.common.params.CommonParams;
 
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.inject.Named;
+import javax.ws.rs.ServiceUnavailableException;
+import javax.xml.ws.http.HTTPException;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Set;
 import java.util.logging.Logger;
 
 @Stateless
 @Named
+/**
+ * OAIServiceBean
+ *
+ * Collect OAI2 arguments and the user. Determine what the user is allowed to see in the index from the permissions.
+ * Then call Solr over an HTTP line.
+ *
+ */
 public class OAIServiceBean {
 
     private static final Logger logger = Logger.getLogger(OAIServiceBean.class.getCanonicalName());
+    private static final String OAI2_ENDPOINT = "oai";
+    private static final Integer HTTP_SOCKET_TIMEOUT = 5000;
+
+    private org.apache.commons.httpclient.HttpClient client;
+    private String oaiEndpoint = null;
 
     /**
      * We're trying to make the OAIServiceBean lean, mean, and fast, with as
@@ -36,7 +53,13 @@ public class OAIServiceBean {
     @EJB
     GroupServiceBean groupService;
 
-    public String request(User user, Dataverse dataverse, String verb, String identifier, String from, String until, String set, String metadataPrefix) throws SolrServerException {
+    public OAIServiceBean() {
+        final MultiThreadedHttpConnectionManager connectionManager = new MultiThreadedHttpConnectionManager();
+        setClient(new HttpClient(connectionManager));
+        setOaiEndpoint(System.getProperty(OAI2_ENDPOINT, "http://localhost:8983/solr/collection1/oai"));// todo make the OAI2_ENDPOINT a SettingsServiceBean key.
+    }
+
+    public String request(User user, String key, Dataverse dataverse, String verb, String identifier, String from, String until, String set, String metadataPrefix) throws ServiceUnavailableException {
 
         String publicOnly = "{!join from=" + SearchFields.DEFINITION_POINT + " to=id}" + SearchFields.DISCOVERABLE_BY + ":(" + IndexServiceBean.getPublicGroupString() + ")";
         // initialize to public only to be safe
@@ -81,46 +104,88 @@ public class OAIServiceBean {
             logger.info("Should never reach here. A User must be an AuthenticatedUser or a Guest");
         }
 
-        final SolrQuery query = new SolrQuery().setRequestHandler("/oai");
-
+        final HttpMethodParams params = new HttpMethodParams();
+        params.setParameter(CommonParams.QT, "/oai");  // assuming the OAI request handler was set in solrconfig.xml with this id.
         if (isSet(verb)) {
-            query.add("verb", verb);
+            params.setParameter("verb", verb);
         }
         if (isSet(identifier)) {
-            query.add("identifier", identifier);
+            params.setParameter("identifier", identifier);
         }
         if (isSet(from)) {
-            query.add("from", from);
+            params.setParameter("from", from);
         }
         if (isSet(until)) {
-            query.add("until", until);
+            params.setParameter("until", until);
         }
         if (isSet((set))) {
-            query.add("set", set);
+            params.setParameter("set", set);
         }
         if (isSet(metadataPrefix)) {
-            query.add("metadataPrefix", metadataPrefix);
+            params.setParameter("metadataPrefix", metadataPrefix);
         }
         if (isSet(permissionFilterQuery)) {
-            query.addFilterQuery(permissionFilterQuery);
+            params.setParameter(CommonParams.FQ, permissionFilterQuery);
+        }
+        // Add the api endpoint.
+        params.setParameter("siteurl_api", systemConfig.getDataverseSiteUrl() + "/api/meta/dataset/");
+
+        final GetMethod get = new GetMethod(oaiEndpoint);
+        String body = null;
+        get.getParams().setParameter("http.socket.timeout", HTTP_SOCKET_TIMEOUT);
+        try {
+            client.executeMethod(get);
+            body = getBodyFromInputStream(get.getResponseBodyAsStream());
+        } catch (IOException | HTTPException e) {
+            logger.fine(e.getMessage());
+        } finally {
+            // released the connection back to the connection manager
+            get.releaseConnection();
         }
 
-        // Only look at datasets and Published material
-        // We could place these in the static query element in solrconfig.xml/oai
-        query.addFilterQuery("dvObjectType", "datasets");
-        query.addFilterQuery("publicationStatus", "Published");
+        if (body == null) {
+            throw new ServiceUnavailableException("Unable to get a 200 Solr response.");
+        }
 
+        return body;
+    }
 
-        final String baseURL = "http://" + systemConfig.getSolrHostColonPort() + "/solr";
-        final SolrServer solrServer = new HttpSolrServer(baseURL);
-        final QueryResponse response = solrServer.query(query, SolrRequest.METHOD.GET);
-        return response.toString();
+    private static String getBodyFromInputStream(InputStream is) {
+
+        BufferedReader br = null;
+        final StringBuilder sb = new StringBuilder();
+
+        String line;
+        try {
+            br = new BufferedReader(new InputStreamReader(is));
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+
+        } catch (IOException e) {
+            logger.fine(e.getMessage());
+        } finally {
+            if (br != null) {
+                try {
+                    br.close();
+                } catch (IOException e) {
+                    logger.fine(e.getMessage());
+                }
+            }
+        }
+
+        return sb.toString();
     }
 
     private static boolean isSet(String s) {
-        if (s == null)
-            return false;
-        return !s.trim().isEmpty();
+        return s != null && !s.trim().isEmpty();
     }
 
+    public void setClient(HttpClient client) {
+        this.client = client;
+    }
+
+    public void setOaiEndpoint(String oaiEndpoint) {
+        this.oaiEndpoint = oaiEndpoint;
+    }
 }

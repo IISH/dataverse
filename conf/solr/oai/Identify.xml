@@ -28,7 +28,7 @@
 
     <Identify>
         <repositoryName>Your repo name</repositoryName>
-        <baseURL>http://localhost:8983/solr/example/oai?</baseURL>
+        <solrCollectionUrl>http://localhost:8983/solr/example/oai?</solrCollectionUrl>
         <protocolVersion>2.0</protocolVersion>
         <adminEmail>admin@domain.org</adminEmail>
         <earliestDatestamp>2011-06-01T12:00:00Z</earliestDatestamp>
