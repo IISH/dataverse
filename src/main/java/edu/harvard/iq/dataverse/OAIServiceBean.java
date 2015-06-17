@@ -30,23 +30,20 @@ import java.util.logging.Logger;
 /**
  * OAIServiceBean
  *
- * Collect OAI2 arguments and the user. Determine what the user is allowed to see in the index from the permissions.
+ * Collect OAI2 arguments and the user by key.
+ * With the key, retrieve the user and determine what she is allowed to see in the index from the permissions.
  * Then call Solr over an HTTP line.
- *
  */
 public class OAIServiceBean {
 
     private static final Logger logger = Logger.getLogger(OAIServiceBean.class.getCanonicalName());
-    private static final String OAI2_ENDPOINT = "oai";
     private static final Integer HTTP_SOCKET_TIMEOUT = 5000;
+    private static final String OAI2_ENDPOINT = "oai";
+    private static final String API_METADATA_DATASET = "/api/meta/dataset/";
 
-    private org.apache.commons.httpclient.HttpClient client;
-    private String oaiEndpoint = null;
+    private HttpClient client;
+    private String oaiEndpoint;
 
-    /**
-     * We're trying to make the OAIServiceBean lean, mean, and fast, with as
-     * few injections of EJBs as possible.
-     */
     @EJB
     SystemConfig systemConfig;
 
@@ -55,12 +52,71 @@ public class OAIServiceBean {
 
     public OAIServiceBean() {
         final MultiThreadedHttpConnectionManager connectionManager = new MultiThreadedHttpConnectionManager();
-        setClient(new HttpClient(connectionManager));
-        setOaiEndpoint(System.getProperty(OAI2_ENDPOINT, "http://localhost:8983/solr/collection1/oai"));// todo make the OAI2_ENDPOINT a SettingsServiceBean key.
+        this.client = new HttpClient(connectionManager);
+        this.oaiEndpoint = System.getProperty(OAI2_ENDPOINT, "http://localhost:8983/solr/collection1/oai");// todo make the OAI2_ENDPOINT a SettingsServiceBean key.
     }
 
+    /**
+     * request
+     *
+     * @param user      The client User
+     * @param key       API token
+     * @param dataverse The dataverse repository we are harvesting from
+     * @return A valid XML document as String
+     * @throws ServiceUnavailableException
+     */
     public String request(User user, String key, Dataverse dataverse, String verb, String identifier, String from, String until, String set, String metadataPrefix) throws ServiceUnavailableException {
 
+        final String permissionFilterQuery = buildPemissionQueryString(user, dataverse);
+
+        final HttpMethodParams params = new HttpMethodParams();
+        params.setParameter(CommonParams.QT, "/oai");  // oai must match the id of the OAI request handler in solrconfig.xml
+        params.setParameter("verb", verb);
+        params.setParameter("identifier", identifier);
+        params.setParameter("from", from);
+        params.setParameter("until", until);
+        params.setParameter("set", set);
+        params.setParameter("metadataPrefix", metadataPrefix);
+        params.setParameter(CommonParams.FQ, permissionFilterQuery);
+
+        // Add the api endpoint, key and timeout.
+        params.setParameter("siteurl_api", systemConfig.getDataverseSiteUrl() + API_METADATA_DATASET);
+        params.setParameter("key", key);
+        params.setParameter("http.socket.timeout", HTTP_SOCKET_TIMEOUT);
+
+        final GetMethod get = new GetMethod(oaiEndpoint);
+        get.setParams(params);
+        String body = null;
+        try {
+            client.executeMethod(get);
+            body = getBodyFromInputStream(get.getResponseBodyAsStream());
+        } catch (IOException | HTTPException e) {
+            logger.fine(e.getMessage());
+        } finally {
+            // release the connection back to the connection manager
+            get.releaseConnection();
+        }
+
+        if (body == null) {
+            throw new ServiceUnavailableException("Unable to get a valid Solr response.");
+        }
+
+        return body;
+    }
+
+    private String identify() {
+
+    }
+
+
+    /**
+     * buildPemissionQueryString
+     * <p/>
+     * Taken from SearchServiceBean
+     *
+     * @return A String to filter the Solr query with
+     */
+    private String buildPemissionQueryString(User user, Dataverse dataverse) {
         String publicOnly = "{!join from=" + SearchFields.DEFINITION_POINT + " to=id}" + SearchFields.DISCOVERABLE_BY + ":(" + IndexServiceBean.getPublicGroupString() + ")";
         // initialize to public only to be safe
         String permissionFilterQuery = publicOnly;
@@ -103,52 +159,9 @@ public class OAIServiceBean {
         } else {
             logger.info("Should never reach here. A User must be an AuthenticatedUser or a Guest");
         }
-
-        final HttpMethodParams params = new HttpMethodParams();
-        params.setParameter(CommonParams.QT, "/oai");  // assuming the OAI request handler was set in solrconfig.xml with this id.
-        if (isSet(verb)) {
-            params.setParameter("verb", verb);
-        }
-        if (isSet(identifier)) {
-            params.setParameter("identifier", identifier);
-        }
-        if (isSet(from)) {
-            params.setParameter("from", from);
-        }
-        if (isSet(until)) {
-            params.setParameter("until", until);
-        }
-        if (isSet((set))) {
-            params.setParameter("set", set);
-        }
-        if (isSet(metadataPrefix)) {
-            params.setParameter("metadataPrefix", metadataPrefix);
-        }
-        if (isSet(permissionFilterQuery)) {
-            params.setParameter(CommonParams.FQ, permissionFilterQuery);
-        }
-        // Add the api endpoint.
-        params.setParameter("siteurl_api", systemConfig.getDataverseSiteUrl() + "/api/meta/dataset/");
-
-        final GetMethod get = new GetMethod(oaiEndpoint);
-        String body = null;
-        get.getParams().setParameter("http.socket.timeout", HTTP_SOCKET_TIMEOUT);
-        try {
-            client.executeMethod(get);
-            body = getBodyFromInputStream(get.getResponseBodyAsStream());
-        } catch (IOException | HTTPException e) {
-            logger.fine(e.getMessage());
-        } finally {
-            // released the connection back to the connection manager
-            get.releaseConnection();
-        }
-
-        if (body == null) {
-            throw new ServiceUnavailableException("Unable to get a 200 Solr response.");
-        }
-
-        return body;
+        return permissionFilterQuery;
     }
+
 
     private static String getBodyFromInputStream(InputStream is) {
 
@@ -177,15 +190,4 @@ public class OAIServiceBean {
         return sb.toString();
     }
 
-    private static boolean isSet(String s) {
-        return s != null && !s.trim().isEmpty();
-    }
-
-    public void setClient(HttpClient client) {
-        this.client = client;
-    }
-
-    public void setOaiEndpoint(String oaiEndpoint) {
-        this.oaiEndpoint = oaiEndpoint;
-    }
 }
