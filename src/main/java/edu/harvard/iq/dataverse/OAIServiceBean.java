@@ -30,8 +30,8 @@ import java.util.logging.Logger;
 /**
  * OAIServiceBean
  *
- * Collect OAI2 arguments and the user by key.
- * With the key, retrieve the user and determine what she is allowed to see in the index from the permissions.
+ * Collect OAI2 arguments, the user and key.
+ * Determine what she is allowed to see in the index from the permissions. This is taken from SearchServiceBean.
  * Then call Solr over an HTTP line.
  */
 public class OAIServiceBean {
@@ -102,10 +102,6 @@ public class OAIServiceBean {
         }
 
         return body;
-    }
-
-    private String identify() {
-
     }
 
 

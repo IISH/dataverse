@@ -1,6 +1,8 @@
 #!/bin/bash
 
 git checkout master
-git fetch upstream
-git merge upstream/master
+if [[ $? == 0 ]] ; then
+	git fetch upstream
+	git merge upstream/master
+fi
 

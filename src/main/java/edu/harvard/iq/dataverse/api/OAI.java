@@ -14,8 +14,17 @@ import javax.ws.rs.core.Context;
 import java.util.logging.Logger;
 
 /**
- * User-facing documentation:
- * <a href="http://guides.dataverse.org/en/latest/api/search.html">http://guides.dataverse.org/en/latest/api/search.html</a>
+ * OAI
+ *
+ * The API offers a handler for each dataverse name. That means each dataverse instance is treated as a repository
+ * with an endpoint: http://domain/api/oai/[dataverse name]
+ * and accepts the OAI2 verbs and parameters.
+ *
+ * As dataverse instances are nested, a harvest will contain all metadata records from the parent and it's children,
+ * provided the user has read permissions.
+ *
+ * User-facing possible documentation:
+ * <a href="http://guides.dataverse.org/en/latest/api/oai.html">http://guides.dataverse.org/en/latest/api/oai.html</a>
  */
 @Path("oai")
 public class OAI extends AbstractApiBean {
