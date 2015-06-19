@@ -2,6 +2,7 @@ package edu.harvard.iq.dataverse.engine.command;
 
 import edu.harvard.iq.dataverse.DOIEZIdServiceBean;
 import edu.harvard.iq.dataverse.HandlenetServiceBean;
+import edu.harvard.iq.dataverse.PidServiceBean;
 import edu.harvard.iq.dataverse.DataFileServiceBean;
 import edu.harvard.iq.dataverse.DatasetLinkingServiceBean;
 import edu.harvard.iq.dataverse.DatasetServiceBean;
@@ -76,7 +77,9 @@ public interface CommandContext {
     public DOIEZIdServiceBean doiEZId();
     
     public HandlenetServiceBean handleNet();
-    
+
+    public PidServiceBean pidWebservice();
+
     public GuestbookServiceBean guestbooks();
     
     public GuestbookResponseServiceBean responses();

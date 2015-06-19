@@ -104,6 +104,11 @@ public class TestCommandContext implements CommandContext {
 	}
         
         @Override
+    public PidServiceBean pidWebservice() {
+        return null;
+    }
+
+    @Override
 	public SettingsServiceBean settings() {
 		return null;
 	} 
