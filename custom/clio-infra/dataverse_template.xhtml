@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:p="http://primefaces.org/ui"
+      lang="en">
+
+    <h:head>
+        <title><h:outputText value="#{pageTitle}"/></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <meta http-equiv="Content-Language" content="en"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+        <meta name="description" content="#{bundle['head.meta.description']}"/>
+        <link type="image/png" rel="icon" href="/resources/images/favicondataverse.png"/>
+        <link type="image/png" rel="image_src" href="/resources/images/dataverseproject.png"/>
+    </h:head>
+
+    <h:body>
+        <f:facet name="last">
+            <h:outputStylesheet library="bs" name="css/bootstrap.css" />
+            <h:outputStylesheet library="bs" name="css/bootstrap-theme.min.css" />
+            <h:outputStylesheet library="css" name="ie-compat.css" />
+            <h:outputStylesheet library="css" name="owl.carousel.css" />
+            <h:outputStylesheet library="css" name="fontcustom.css" />
+            <h:outputStylesheet library="css" name="socicon.css" />
+            <h:outputStylesheet library="css" name="structure.css" />
+        </f:facet>
+        <f:loadBundle basename="Bundle" var="bundle"/>
+        <a href="#content" class="sr-only">#{bundle['body.skip']}</a>
+        <ui:include src="dataverse_header.xhtml">            
+            <ui:param name="dataverse" value="#{dataverse != null ? dataverse : dataverseServiceBean.findRootDataverse()}"/>
+            <ui:param name="showDataverseHeader" value="#{showDataverseHeader != null ? showDataverseHeader : true}"/>
+            <ui:param name="showMessagePanel" value="#{showMessagePanel != null ? showMessagePanel : true}"/>
+            <ui:param name="loginRedirectPage" value="#{loginRedirectPage != null ? '?redirectPage='.concat(loginRedirectPage) : dataverseHeaderFragment.loginRedirectPage}"/>
+        </ui:include>
+	<div id="page">
+            <ui:insert name="body">Default Body</ui:insert>
+
+<footer id="footer" class="region region-footer">
+    <div id="block-menu-menu-footer-menu" class="block block-menu first odd" role="navigation">
+
+      
+  <ul class="menu"><li class="menu__item is-leaf first leaf"><a href="http://www.clio-infra.eu/content/disclaimer" title="" class="menu__link">Disclaimer</a></li>
+<li class="menu__item is-leaf leaf"><a href="http://www.clio-infra.eu/content/copyright" title="" class="menu__link">Copyright</a></li>
+<li class="menu__item is-leaf last leaf"><a href="http://www.clio-infra.eu/content/colophon" title="" class="menu__link">Colophon</a></li>
+</ul>
+</div>
+<div id="block-clio-blocks-address" class="block block-clio-blocks even">
+
+      
+  Cruquiusweg 31<br></br>
+1019 AT Amsterdam<br></br>
+The Netherlands
+</div>
+<div id="block-clio-blocks-correspondence" class="block block-clio-blocks odd">
+
+      
+  Correspondence address:<br></br>
+P.O. Box 2169<br></br>
+1000 CD  Amsterdam<br></br>
+The Netherlands
+</div>
+<div id="block-clio-blocks-telephone" class="block block-clio-blocks last even">
+
+      
+  tel + 31 20 6685866<br></br>
+fax + 31 20 6654181<br></br>
+e-mail: clioinfra@iisg.nl
+</div>
+  </footer>
+	</div>
+        <p:ajaxStatus id="ajaxStatusPanel">
+            <f:facet name="start">
+                <h:graphicImage value="/resources/images/ajax-loading.gif" />
+            </f:facet>
+            <f:facet name="complete">
+                <!-- DO NOTHING -->
+            </f:facet>
+        </p:ajaxStatus>
+        <ui:include src="contactFormFragment_custom.xhtml">
+            <ui:param name="formTitle" value="#{bundle['contact.header']}"/>
+            <ui:param name="formTo" value="#{bundle['contact.to']}"/>
+        </ui:include>
+        <p:dialog id="statusInfo" header="#{settingsServiceBean.get(':StatusMessageHeader')}" widgetVar="statusInfo" modal="true">
+            <p><h:outputText value="#{settingsServiceBean.get(':StatusMessageText')}" escape="false"/></p>
+            <div class="button-block">
+                <button type="button" onclick="statusInfo.hide()" class="btn btn-default" value="#{bundle.close}">
+                    #{bundle.close}
+                </button>
+            </div>
+        </p:dialog>
+        <h:outputScript library="bs" name="js/bootstrap.min.js" />
+        <h:outputScript library="bs" name="js/bootstrap-hover-dropdown.min.js" />
+        <h:outputScript library="js" name="ie-compat.js" />
+        <h:outputScript library="js" name="dv_rebind_bootstrap_ui.js" />
+        <h:outputScript library="js" name="owl.carousel.js" />
+        <h:outputScript library="js" name="jquery.matchHeight.js" />
+        <h:outputScript library="js" name="jquery.sharrre.js" />
+        <script>
+            
+            $(document).ready(function() {
+                // Navbar Search Toggle
+                $(document).on('click', '#navbar-search-toggle', function (e) {
+                    $(this).parent("li").hide();
+                    $("form.navbar-form[role='search']").show();
+                });
+                $('body').click(function(e) {
+                    if (!$(e.target).closest("form.navbar-form[role='search']").length) {
+                        $("form.navbar-form[role='search']").hide();
+                        $("#navbar-search-toggle").parent("li").show();
+                    };
+                });
+                
+                // Rebind bootstrap UI components
+                bind_bsui_components();
+            });
+            
+            /*
+            * Custom Popover with HTML code snippet
+            */
+            function popoverHTML() {
+                var popoverTemplateHTML = ['<div class="popover">',
+                    '<div class="arrow"></div>',
+                    '<h3 class="popover-title"></h3>',
+                    '<div class="popover-content">',
+                    '</div>',
+                    '</div>'].join('');
+
+                var popoverContentHTML = ['<code>',
+                    '<h:outputText value="#{bundle.htmlAllowedTags}" escape="true"/>',
+                    '</code>'].join('');
+ 
+                $('body').popover({
+                    selector: 'span.popoverHTML',
+                    title: '<h:outputText value="#{bundle.htmlAllowedTitle}"/>',
+                    trigger: 'hover',
+                    content : popoverContentHTML,
+                    template: popoverTemplateHTML,
+                    placement: "bottom",
+                    container: "#content",
+                    html: true
+                });
+            }
+        </script>
+        <ui:include src="google-analytics-snippet.xhtml"></ui:include>                         
+
+    </h:body>
+</html>
