@@ -51,34 +51,29 @@
                         </li>
                         <li class="dropdown">
                             <span id="dataverseSupportLink" class="dropdown-toggle" data-toggle="dropdown">
-                                #{bundle['header.guides']} <b class="caret"></b>
+                                #{bundle['header.support']} <b class="caret"></b>
                             </span>
                             <ul class="dropdown-menu">
                                 <li>
-                                    <h:outputLink value="#{systemConfig.guidesBaseUrl}/#{systemConfig.version}/user" target="_blank">
-                                        #{bundle['header.guides.user']}
+                                    <h:outputLink value="http://community.dataverse.org/advisory-team.html" target="_blank">
+                                        <h:outputText value="#{bundle['header.community']}" />
                                     </h:outputLink>
                                 </li>
                                 <li>
-                                    <h:outputLink value="#{systemConfig.guidesBaseUrl}/latest/developers" target="_blank">
-                                        <h:outputText value="#{bundle['header.guides.developers']}" />
+                                    <h:outputLink value="http://dataverse.org/contact/" target="_blank">
+                                        <h:outputText value="#{bundle['header.support']}" />
                                     </h:outputLink>
                                 </li>
                                 <li>
-                                    <h:outputLink value="#{systemConfig.guidesBaseUrl}/latest/installation" target="_blank">
-                                        <h:outputText value="#{bundle['header.guides.installation']}" />
-                                    </h:outputLink>
-                                </li>
-                                <li>
-                                    <h:outputLink value="#{systemConfig.guidesBaseUrl}/#{systemConfig.version}/api" target="_blank">
-                                        <h:outputText value="#{bundle['header.guides.api']}" />
+                                    <h:outputLink value="/guides/index.html" target="_blank">
+                                        #{bundle['header.support.guides']}
                                     </h:outputLink>
                                 </li>
                             </ul>
                         </li>
                         <h:form class="navbar-form navbar-left navbar-form-link">
-                           <p:commandLink value="#{bundle['header.support']}" oncomplete="contactForm.show()" update=":contactDialog" actionListener="#{sendFeedbackDialog.initUserInput}">
-                                <f:setPropertyActionListener target="#{sendFeedbackDialog.messageSubject}" value=""/>
+                           <p:commandLink value="#{bundle['header.contact']}" oncomplete="contactForm.show()" update=":contactDialog" actionListener="#{sendFeedbackDialog.initUserInput}">
+                                <f:setPropertyActionListener target="#{sendFeedbackDialog.messageSubject}" value="#{bundle['dataverse']} #{dataverseService.getApplicationVersion()} #{bundle['header.contact']}"/>
                                 <f:setPropertyActionListener target="#{sendFeedbackDialog.recipient}" value="#{null}"/>
                                 <f:setPropertyActionListener target="#{sendFeedbackDialog.userMessage}" value=""/>
                                 <f:setPropertyActionListener target="#{sendFeedbackDialog.userEmail}" value=""/>
@@ -162,19 +157,66 @@
 
         <!-- Header Panel -->
         <div id="dataverseHeader" class="container bg-muted" 
-                style="background:##{!empty dataverse.dataverseTheme.backgroundColor ? dataverse.dataverseTheme.backgroundColor : 'F5F5F5'};"
+                style="background:##{!empty dataverse.dataverseTheme.backgroundColor ? dataverse.dataverseTheme.backgroundColor : 'FFFFFF'};"
                 jsf:rendered="#{showDataverseHeader}">
             <div class="dataverseHeaderLogo" style="text-align:#{!empty dataverse.dataverseTheme.logoAlignment ? dataverse.dataverseTheme.logoAlignment : 'center'};; background:##{!empty dataverse.dataverseTheme.logoBackgroundColor ? dataverse.dataverseTheme.logoBackgroundColor : 'F5F5F5'};"
                     jsf:rendered="#{!empty dataverse.dataverseTheme.logo and dataverse.dataverseTheme.logoFormat == 'RECTANGLE'}">
                 <img src="/logos/#{dataverse.logoOwnerId}/#{dataverse.dataverseTheme.logo}" alt="#{dataverse.name} #{bundle.dataverse}"/>
             </div>
-            <div class="dataverseHeaderBlock">
+            <div class="dataverseHeaderBlock1">
                 <div class="dataverseHeaderCell dataverseHeaderLogo" jsf:rendered="#{!empty dataverse.dataverseTheme.logo and dataverse.dataverseTheme.logoFormat == 'SQUARE'}">
                     <img src="/logos/#{dataverse.logoOwnerId}/#{dataverse.dataverseTheme.logo}" alt="#{dataverse.name} #{bundle.dataverse}"/>
                 </div>
-                <div class="dataverseHeaderCell dataverseHeaderName" jsf:rendered="#{!empty dataverse.name}">
-                    <a href="/dataverse/#{dataverse.alias}" class="dataverseHeaderDataverseName" style="color:##{!empty dataverse.dataverseTheme.linkColor ? dataverse.dataverseTheme.linkColor : '428bca'};">#{dataverse.name} #{bundle.dataverse}</a>
-                    <h:outputText style="color:##{!empty dataverse.dataverseTheme.textColor ? dataverse.dataverseTheme.textColor : '888888'};" value=" (#{dataverse.affiliation})" rendered="#{!empty dataverse.affiliation}"/>
+		<div id="page">
+<style>
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/normalize.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/wireframes.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/layouts/fixed-width.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/tabs.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/pages.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/blocks.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/navigation.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/views-styles.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/nodes.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/comments.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/forms.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/fields.css?nhv6pf");
+@import url("https://www.clio-infra.eu/sites/all/themes/clioinfra/css/print.css?nhv6pf");
+</style>
+<header id="header" role="banner">
+
+          <a href="http://www.clio-infra.eu/" title="Home" rel="home" id="logo"><img src="https://www.clio-infra.eu/sites/all/themes/clioinfra/images/clioinfra-logo.png" alt="Home" /></a>
+    
+          <hgroup id="name-and-slogan">
+        
+                  <h2 id="site-slogan">Collaboratories in Social and Economic History</h2>
+              </hgroup><!-- /#name-and-slogan -->
+    
+    
+      <div class="header__region region region-header">
+    <div id="block-menu-menu-login" class="block block-menu first last odd" role="navigation">
+
+      
+</div>
+  </div>
+
+  </header>
+    <div id="navigation">
+
+              <nav id="main-menu" role="navigation" tabindex="-1">
+<ul class="links inline clearfix"><li class="menu-180 first"><a href="http://www.clio-infra.eu/">Home</a></li>
+<li class="menu-462"><a href="http://www.clio-infra.eu/datasets" title="">Datasets</a></li>
+<li class="menu-463"><a href="http://www.clio-infra.eu/visualize" title="">Visualize</a></li>
+<li class="menu-464"><a href="http://www.clio-infra.eu/content/news-publications" title="">News &amp; publications</a></li>
+<li class="menu-467"><a href="http://www.clio-infra.eu/content/about-clio-infra" title="" >About</a></li>
+<li class="menu-465"><a href="http://www.clio-infra.eu/content/partners" title="">Partners</a></li>
+<li class="menu-467 active-trail active"><a href="http://preview-collab.iisg.nl" title="" class="active-trail active">Collabs</a></li>
+<li class="menu-467 active-trail active"><a href="http://dataverse.sandbox.socialhistoryservices.org" title="" class="active-trail active">Repository</a></li>
+<li class="menu-466 last"><a href="http://www.clio-infra.eu/content/contact" title="">Contact</a></li>
+</ul>        </nav>
+      
+      
+    </div><!-- /#navigation -->
                     <h:outputText value="#{bundle.unpublished}" styleClass="label label-warning label-unpublished" rendered="#{!dataverse.released}"/>
                 </div>
                 <div class="dataverseHeaderCell dataverseHeaderName" jsf:rendered="#{empty dataverse.name}">
@@ -191,6 +233,7 @@
             </div>
         </div>
 
+	<div id="page">
         <div id="breadcrumbNavBlock" class="container" jsf:rendered="#{dataverseHeaderFragment.breadcrumbs.size() > 1}">
             <ui:repeat value="#{dataverseHeaderFragment.breadcrumbs}" var="breadcrumb" varStatus="status">
                 <h:outputText value=" > " styleClass="breadcrumbCarrot" rendered="#{!status.first}"/>
@@ -213,6 +256,7 @@
                 </div>
             </ui:repeat>                    
         </div>
+	</div>
 
         <ui:remove>
             <!-- Removing this temporarily until we can fix the performance issues with it;
