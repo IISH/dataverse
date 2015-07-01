@@ -729,10 +729,11 @@
                                             </ui:fragment>
 
 					    <!-- NLGIS viewer -->
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
 <script>
-overviewurl = '/python/widget.py?dataset=#{DatasetPage.persistentId}:#{dataset.id}:#{fileMetadata.dataFile.id}&amp;file=#{fileMetadata}';
+overviewurl = 'http://preview-collab.iisg.nl/cgi-bin/widget.pl?dataset=#{DatasetPage.persistentId}:#{dataset.id}:#{fileMetadata.dataFile.id}&amp;file=#{fileMetadata}';
 nlgisdiv = "#nlgis" + #{fileMetadata.dataFile.id};
-$(nlgisdiv).load(overviewurl);
+$(nlgisdiv).html('<object data="' + overviewurl + '"></object>');
 </script>
                                             <!-- TwoRavens explore option -->
                                             <h:commandLink rendered="#{!(empty fileMetadata.dataFile.id) and (fileMetadata.dataFile.tabularData or fileMetadata.dataFile.ingestInProgress)
