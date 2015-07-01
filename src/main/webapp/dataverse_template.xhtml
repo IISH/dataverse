@@ -8,27 +8,26 @@
       lang="en">
 
     <h:head>
-        <f:facet name="first">
-            <title><h:outputText value="#{pageTitle}"/></title>
-            <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-            <meta http-equiv="Content-Language" content="en"/>
-            <meta name="viewport" content="width=device-width, initial-scale=1"/>
-            <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
-            <meta name="description" content="#{bundle['head.meta.description']}"/>
-        </f:facet>
-        <link type="image/png" rel="icon" href="#{resource['images/favicondataverse.png']}" />
-        <link type="image/png" rel="image_src" href="#{resource['images/dataverseproject.png']}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['bs/css/bootstrap.css']}?version=#{systemConfig.getVersion()}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['bs/css/bootstrap-theme.min.css']}?version=#{systemConfig.getVersion()}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['css/ie-compat.css']}?version=#{systemConfig.getVersion()}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['css/owl.carousel.css']}?version=#{systemConfig.getVersion()}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['css/fontcustom.css']}?version=#{systemConfig.getVersion()}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['css/socicon.css']}?version=#{systemConfig.getVersion()}" />
-        <link type="text/css" rel="stylesheet" href="#{resource['css/structure.css']}?version=#{systemConfig.getVersion()}" />
-   </h:head>
+        <title><h:outputText value="#{pageTitle}"/></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <meta http-equiv="Content-Language" content="en"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+        <meta name="description" content="#{bundle['head.meta.description']}"/>
+        <link type="image/png" rel="icon" href="/resources/images/favicondataverse.png"/>
+        <link type="image/png" rel="image_src" href="/resources/images/dataverseproject.png"/>
+    </h:head>
 
     <h:body>
-      
+        <f:facet name="last">
+            <h:outputStylesheet library="bs" name="css/bootstrap.css" />
+            <h:outputStylesheet library="bs" name="css/bootstrap-theme.min.css" />
+            <h:outputStylesheet library="css" name="ie-compat.css" />
+            <h:outputStylesheet library="css" name="owl.carousel.css" />
+            <h:outputStylesheet library="css" name="fontcustom.css" />
+            <h:outputStylesheet library="css" name="socicon.css" />
+            <h:outputStylesheet library="css" name="structure.css" />
+        </f:facet>
         <f:loadBundle basename="Bundle" var="bundle"/>
         <a href="#content" class="sr-only">#{bundle['body.skip']}</a>
         <ui:include src="dataverse_header.xhtml">            
@@ -37,22 +36,42 @@
             <ui:param name="showMessagePanel" value="#{showMessagePanel != null ? showMessagePanel : true}"/>
             <ui:param name="loginRedirectPage" value="#{loginRedirectPage != null ? '?redirectPage='.concat(loginRedirectPage) : dataverseHeaderFragment.loginRedirectPage}"/>
         </ui:include>
-        <div class="container" id="content">
+	<div id="page">
             <ui:insert name="body">Default Body</ui:insert>
-        </div>
-        <div class="container clearfix" id="footer">
-            <div class="pull-left">
-                <h:outputText value="#{bundle['footer.dataScienceIQSS']}" escape="false"/> &#160;|&#160; #{bundle['footer.dataverseProjectOn']} <a href="https://twitter.com/dataverseorg" target="_blank" title="#{bundle['footer.dataverseProjectOn']} #{bundle['footer.Twitter']}"><span class="socicon socicon-twitter" title="#{bundle['footer.dataverseProjectOn']} #{bundle['footer.Twitter']}"/></a> &#160;|&#160; #{bundle['footer.codeAvailable']} <a href="https://github.com/IQSS/dataverse" target="_blank" title="#{bundle['footer.dataverseOnGitHub']}"><span class="socicon socicon-github" title="#{bundle['footer.dataverseOnGitHub']}"/></a><br/>
-                <h:outputText value="#{bundle['footer.copyright']}" escape="false"/> <ui:fragment rendered="#{!empty systemConfig.applicationPrivacyPolicyUrl}">&#160;|&#160; <h:outputLink value="#{systemConfig.applicationPrivacyPolicyUrl}" target="_blank">#{bundle['footer.privacyPolicy']}</h:outputLink></ui:fragment>
-            </div>
-            <div class="pull-right clearfix">
-                <div class="poweredbylogo pull-left">
-                    <span>#{bundle['footer.poweredby']}</span> 
-                    <a href="http://dataverse.org/" title="#{bundle['footer.dataverseProject']}" target="_blank"><img src="/resources/images/dataverseproject_logo.jpg" alt="#{bundle['footer.dataverseProject']}" /></a>
-                </div>
-                <div class="version pull-right">v. #{dataverseServiceBean.applicationVersion}</div>
-            </div>
-        </div>
+
+<footer id="footer" class="region region-footer">
+    <div id="block-menu-menu-footer-menu" class="block block-menu first odd" role="navigation">
+
+      
+  <ul class="menu"><li class="menu__item is-leaf first leaf"><a href="http://www.clio-infra.eu/content/disclaimer" title="" class="menu__link">Disclaimer</a></li>
+<li class="menu__item is-leaf leaf"><a href="http://www.clio-infra.eu/content/copyright" title="" class="menu__link">Copyright</a></li>
+<li class="menu__item is-leaf last leaf"><a href="http://www.clio-infra.eu/content/colophon" title="" class="menu__link">Colophon</a></li>
+</ul>
+</div>
+<div id="block-clio-blocks-address" class="block block-clio-blocks even">
+
+      
+  Cruquiusweg 31<br></br>
+1019 AT Amsterdam<br></br>
+The Netherlands
+</div>
+<div id="block-clio-blocks-correspondence" class="block block-clio-blocks odd">
+
+      
+  Correspondence address:<br></br>
+P.O. Box 2169<br></br>
+1000 CD  Amsterdam<br></br>
+The Netherlands
+</div>
+<div id="block-clio-blocks-telephone" class="block block-clio-blocks last even">
+
+      
+  tel + 31 20 6685866<br></br>
+fax + 31 20 6654181<br></br>
+e-mail: clioinfra@iisg.nl
+</div>
+  </footer>
+	</div>
         <p:ajaxStatus id="ajaxStatusPanel">
             <f:facet name="start">
                 <h:graphicImage value="/resources/images/ajax-loading.gif" />
@@ -73,14 +92,13 @@
                 </button>
             </div>
         </p:dialog>
-        
-        <script type="text/javascript" src="#{resource['bs/js/bootstrap.min.js']}?version=#{systemConfig.getVersion()}"></script>
-        <script type="text/javascript" src="#{resource['bs/js/bootstrap-hover-dropdown.min.js']}?version=#{systemConfig.getVersion()}"></script>
-        <script type="text/javascript" src="#{resource['js/ie-compat.js']}?version=#{systemConfig.getVersion()}"></script>
-        <script type="text/javascript" src="#{resource['js/dv_rebind_bootstrap_ui.js']}?version=#{systemConfig.getVersion()}"></script>
-        <script type="text/javascript" src="#{resource['js/owl.carousel.js']}?version=#{systemConfig.getVersion()}"></script>
-        <script type="text/javascript" src="#{resource['js/jquery.matchHeight.js']}?version=#{systemConfig.getVersion()}"></script>
-        <script type="text/javascript" src="#{resource['js/jquery.sharrre.js']}?version=#{systemConfig.getVersion()}"></script>
+        <h:outputScript library="bs" name="js/bootstrap.min.js" />
+        <h:outputScript library="bs" name="js/bootstrap-hover-dropdown.min.js" />
+        <h:outputScript library="js" name="ie-compat.js" />
+        <h:outputScript library="js" name="dv_rebind_bootstrap_ui.js" />
+        <h:outputScript library="js" name="owl.carousel.js" />
+        <h:outputScript library="js" name="jquery.matchHeight.js" />
+        <h:outputScript library="js" name="jquery.sharrre.js" />
         <script>
             
             $(document).ready(function() {
