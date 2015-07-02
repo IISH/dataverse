@@ -1,0 +1,13 @@
+[config]
+host = localhost
+dbname = dataversedb
+user = dvnuser
+password = somesecret
+sender = do-not-reply@host
+mailhost = mail1.host
+mailusername = support.host
+mailpassword = somepasswd
+testreceiver = user@host
+testsender = dataverse@host
+dataverse = dataversehost
+key = some_api_token
