@@ -10,8 +10,8 @@ import edu.harvard.iq.dataverse.util.SystemConfig;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.MultiThreadedHttpConnectionManager;
 import org.apache.commons.httpclient.methods.GetMethod;
-import org.apache.commons.httpclient.params.HttpMethodParams;
 import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.ModifiableSolrParams;
 
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
@@ -22,6 +22,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -37,9 +39,29 @@ import java.util.logging.Logger;
 public class OAIServiceBean {
 
     private static final Logger logger = Logger.getLogger(OAIServiceBean.class.getCanonicalName());
-    private static final Integer HTTP_SOCKET_TIMEOUT = 5000;
-    private static final String OAI2_ENDPOINT = "oai";
-    private static final String API_METADATA_DATASET = "/api/meta/dataset/";
+    private static final int HTTP_SOCKET_TIMEOUT = 5000;
+    private static final String OAI2_ENDPOINT = "oai.endpoint";
+    private static final String IDENTIFY_TEMPLATE = "<OAI-PMH xmlns=\"http://www.openarchives.org/OAI/2.0/\">\n" +
+            "<responseDate>%s</responseDate>\n" +
+            "<request verb=\"Identify\">%s/api/oai</request>\n" +
+            "<Identify>\n" +
+            "<repositoryName>%s</repositoryName>\n" +
+            "<protocolVersion>2.0</protocolVersion>\n" +
+            "<adminEmail>%s</adminEmail>\n" +
+            "<earliestDatestamp>1970-01-01T00:00:00Z</earliestDatestamp>\n" +
+            "<deletedRecord>transient</deletedRecord>\n" +
+            "<granularity>YYYY-MM-DDThh:mm:ssZ</granularity>\n" +
+            "<compression>none</compression>\n" +
+            "<description>\n" +
+            "<oai-identifier:oai-identifier xmlns=\"http://www.openarchives.org/OAI/2.0/oai-identifier\" xmlns:oai-identifier=\"http://www.openarchives.org/OAI/2.0/oai-identifier\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"http://www.openarchives.org/OAI/2.0/oai-identifier http://www.openarchives.org/OAI/2.0/oai-identifier.xsd\">\n" +
+            "<scheme>oai</scheme>\n" +
+            "<repositoryIdentifier>%s</repositoryIdentifier>\n" +
+            "<delimiter>:</delimiter>\n" +
+            "<sampleIdentifier>oai:%s:doi:10.1234/ABC/DEFGHI</sampleIdentifier>\n" +
+            "</oai-identifier:oai-identifier>\n" +
+            "</description>\n" +
+            "</Identify>\n" +
+            "</OAI-PMH>";
 
     private HttpClient client;
     private String oaiEndpoint;
@@ -67,25 +89,29 @@ public class OAIServiceBean {
      */
     public String request(User user, String key, Dataverse dataverse, String verb, String identifier, String from, String until, String set, String metadataPrefix) throws ServiceUnavailableException {
 
-        final String permissionFilterQuery = buildPemissionQueryString(user, dataverse);
+        if (verb != null && verb.equals("Identify"))
+            return identify(
+                    systemConfig.getDataverseSiteUrl(),
+                    dataverse.getDisplayName(),
+                    dataverse.getContactEmails(),
+                    System.getProperty("dataverse.fqdn", "localhost"));
 
-        final HttpMethodParams params = new HttpMethodParams();
-        params.setParameter(CommonParams.QT, "/oai");  // oai must match the id of the OAI request handler in solrconfig.xml
-        params.setParameter("verb", verb);
-        params.setParameter("identifier", identifier);
-        params.setParameter("from", from);
-        params.setParameter("until", until);
-        params.setParameter("set", set);
-        params.setParameter("metadataPrefix", metadataPrefix);
-        params.setParameter(CommonParams.FQ, permissionFilterQuery);
+        final ModifiableSolrParams params = new ModifiableSolrParams();
+        paramsAdd(params, CommonParams.QT, "/oai");  // oai must match the id of the OAI request handler in solrconfig.xml
+        paramsAdd(params, "verb", verb);
+        paramsAdd(params, "identifier", identifier);
+        paramsAdd(params, "from", from);
+        paramsAdd(params, "until", until);
+        paramsAdd(params, "set", set);
+        paramsAdd(params, "metadataPrefix", metadataPrefix);
+        paramsAdd(params, CommonParams.FQ, permissionFilter(user, dataverse));
+        // The following parameters may be useful for the xslt. Note though: the key will be logged in the Solr log and
+        // depending on the infrastructure it is sent to another machine over a plain text connection.
+        paramsAdd(params, "siteurl", systemConfig.getDataverseSiteUrl());
+        paramsAdd(params, "key", key);
 
-        // Add the api endpoint, key and timeout.
-        params.setParameter("siteurl_api", systemConfig.getDataverseSiteUrl() + API_METADATA_DATASET);
-        params.setParameter("key", key);
-        params.setParameter("http.socket.timeout", HTTP_SOCKET_TIMEOUT);
-
-        final GetMethod get = new GetMethod(oaiEndpoint);
-        get.setParams(params);
+        final GetMethod get = new GetMethod(oaiEndpoint + "?" + params.toString());
+        get.getParams().setParameter("http.socket.timeout", HTTP_SOCKET_TIMEOUT);
         String body = null;
         try {
             client.executeMethod(get);
@@ -97,22 +123,46 @@ public class OAIServiceBean {
             get.releaseConnection();
         }
 
-        if (body == null) {
-            throw new ServiceUnavailableException("Unable to get a valid Solr response.");
-        }
-
         return body;
+    }
+
+    private static void paramsAdd(ModifiableSolrParams params, String key, String value) {
+        if (value != null && !value.isEmpty())
+            params.add(key, value);
+    }
+
+    /**
+     * identify
+     * <p/>
+     * Create an Identify response
+     *
+     * @param baseUrl              The OAI base url
+     * @param repositoryName       Display name of the repository
+     * @param adminEmail           The repository administrator ( the dataverse contact )
+     * @param repositoryIdentifier The repository identifier
+     * @return The Identify response as an XML string
+     */
+    private static String identify(String baseUrl, String repositoryName, String adminEmail, String repositoryIdentifier) {
+
+        return String.format(IDENTIFY_TEMPLATE,
+                parseDatestamp(new Date()),
+                baseUrl,
+                repositoryName,
+                adminEmail,
+                repositoryIdentifier,
+                repositoryIdentifier
+        );
     }
 
 
     /**
-     * buildPemissionQueryString
+     * permissionFilter
      * <p/>
      * Taken from SearchServiceBean
      *
      * @return A String to filter the Solr query with
      */
-    private String buildPemissionQueryString(User user, Dataverse dataverse) {
+    private String permissionFilter(User user, Dataverse dataverse) {
         String publicOnly = "{!join from=" + SearchFields.DEFINITION_POINT + " to=id}" + SearchFields.DISCOVERABLE_BY + ":(" + IndexServiceBean.getPublicGroupString() + ")";
         // initialize to public only to be safe
         String permissionFilterQuery = publicOnly;
@@ -158,7 +208,6 @@ public class OAIServiceBean {
         return permissionFilterQuery;
     }
 
-
     private static String getBodyFromInputStream(InputStream is) {
 
         BufferedReader br = null;
@@ -186,4 +235,9 @@ public class OAIServiceBean {
         return sb.toString();
     }
 
+    private static String parseDatestamp(Date date) {
+
+        final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:SS'Z'");
+        return dateFormat.format(date);
+    }
 }

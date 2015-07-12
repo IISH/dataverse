@@ -40,9 +40,9 @@
                     xmlns="http://www.openarchives.org/OAI/2.0/oai-identifier"
                     xsi:schemaLocation="http://www.openarchives.org/OAI/2.0/oai-identifier http://www.openarchives.org/OAI/2.0/oai-identifier.xsd">
                 <scheme>oai</scheme>
-                <repositoryIdentifier>localhost</repositoryIdentifier>
+                <repositoryIdentifier>domain.org</repositoryIdentifier>
                 <delimiter>:</delimiter>
-                <sampleIdentifier>oai:localhost:12345/12345-abcde</sampleIdentifier>
+                <sampleIdentifier>oai:domain.org:12345/12345-abcde</sampleIdentifier>
             </oai-identifier>
         </description>
     </Identify>

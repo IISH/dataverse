@@ -20,13 +20,12 @@
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 version="1.0"
                 xmlns:ddi="http://www.icpsr.umich.edu/DDI"
-                exclude-result-prefixes="ddi"
-        >
+                exclude-result-prefixes="ddi">
 
     <xsl:import href="oai.xsl"/>
 
-    <!-- siteurl_api: proxy url with the api action that ends with a / E.g.: 'http://localhost/api/metadata/dataset/' -->
-    <xsl:variable name="siteurl_api" select="//str[@name='siteurl_api']/text()"/>
+    <!-- siteurl: proxy url with the api action that ends with a / E.g.: 'http://localhost/api/metadata/dataset/' -->
+    <xsl:variable name="siteurl" select="//str[@name='siteurl']/text()"/>
     <xsl:variable name="key" select="//str[@name='key']/text()"/>
 
     <xsl:template name="header">
@@ -46,8 +45,9 @@
     </xsl:template>
 
     <xsl:template name="metadata">
+        <!-- Beware: this is an api key and will get logged -->
         <xsl:variable name="ddi_document"
-                      select="document(concat($siteurl_api, $doc//long[@name='entityId'], '?key=', $key))"/>
+                      select="document(concat($siteurl, '/api/metadata/dataset/', $doc//long[@name='entityId'], '?key=', $key))"/>
         <metadata>
             <ddi:codeBook xmlns:ddi="http://www.icpsr.umich.edu/DDI" version="2.0">
                 <xsl:apply-templates select="$ddi_document/node()/*" mode="ddi"/>

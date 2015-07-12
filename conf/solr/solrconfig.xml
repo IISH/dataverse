@@ -32,7 +32,7 @@
         <str name="oai_home">/collection1/oai</str>
 
         <!-- the base url...  -->
-        <str name="proxyurl">http://localhost:8983/collection1/oai</str>
+        <str name="proxyurl">https://localhost:9999/api/oai</str>
 
         <!-- index of the oai identifier user for the -identifier parameter
                       For example, if your Solr identifier index is "identifier", you set it
@@ -47,7 +47,7 @@
                                                then an OAI request like GetRecord&identifier=oai:mydomain:id12345
                                                         is rewritten as id12345 and passed on to the Solr query.
                                                                 -->
-        <str name="prefix">oai:10.0.0.100:</str>
+        <str name="prefix">oai:localhost:9999:</str>
 
         <!-- the field that can be used for the -from and -until  values -->
         <str name="field_index_datestamp">dateSort</str>
@@ -57,8 +57,8 @@
                              results. -->
         <str name="field_sort_datestamp">dateSort</str>
 
-        <!-- index for the -set value -->
-        <str name="field_index_set">dvSubject</str>
+        <!-- index for the -set value (if implemented at all) -->
+        <!--<str name="field_index_set">dvSubject</str>-->
 
         <!-- Some documents may be large or small, depending on the schema.
                      In that case, we set the step of the paging to a lower count. -->
