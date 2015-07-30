@@ -61,7 +61,10 @@
                 <!-- DO NOTHING -->
             </f:facet>
         </p:ajaxStatus>
-        <ui:include src="contactFormFragment.xhtml">
+        <!-- Introduce two different meanings of the contact button. For authorized users the groupmailFormFragment
+         For anonymous and authenticated users the contactFormFragment
+         -->
+        <ui:include src="#{groupMailDialog.getFormFragment()}">
             <ui:param name="formTitle" value="#{bundle['contact.header']}"/>
             <ui:param name="formTo" value="#{bundle['contact.to']}"/>
         </ui:include>
