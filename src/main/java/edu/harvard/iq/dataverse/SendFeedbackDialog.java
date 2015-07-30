@@ -23,23 +23,24 @@ import static edu.harvard.iq.dataverse.util.JsfHelper.JH;
 
 /**
  * @author Naomi
+ * @author Lucien van Wouw <lwo@iisg.nl>
+ * @since 2015-07-30
  */
 @ViewScoped
 @Named
 public class SendFeedbackDialog implements java.io.Serializable {
 
+    private static String DEFAULT_RECIPIENT_MAIL = "support@thedata.org";
     private String userEmail = "";
     private String userMessage = "";
     private String messageSubject = "";
-    private String messageTo = "";
-    private String defaultRecipientEmail = "support@thedata.org";
     Long op1, op2, userSum;
     // Either the dataverse or the dataset that the message is pertaining to
     // If there is no recipient, this is a general feeback message
     private DvObject recipient;
     private Logger logger = Logger.getLogger(SendFeedbackDialog.class.getCanonicalName());
 
-    private List<RoleAssignee> assignees;
+    private List<String> assignees;
     private List<RoleAssignee> availableRoleAssignees;
 
     @EJB
@@ -68,7 +69,6 @@ public class SendFeedbackDialog implements java.io.Serializable {
         System.out.println("initUserInput()");
         userEmail = "";
         userMessage = "";
-        messageTo = "";
         messageSubject = "";
         Random random = new Random();
         op1 = new Long(random.nextInt(10));
@@ -179,7 +179,7 @@ public class SendFeedbackDialog implements java.io.Serializable {
 
     }
 
-    public void validateUserEmail(FacesContext context, UIComponent component, Object value) throws ValidatorException {
+  public void validateUserEmail(FacesContext context, UIComponent component, Object value) throws ValidatorException {
 
         if (!EmailValidator.getInstance().isValid((String) value)) {
 
@@ -203,38 +203,41 @@ public class SendFeedbackDialog implements java.io.Serializable {
     }
 
     public String sendMessage() {
-        List<String> email = new ArrayList<>();
+        final List<String> emailList = new ArrayList<>();
 
-        for (RoleAssignee roleAssignee : assignees) {
-            if (availableRoleAssignees.contains(roleAssignee))
-                addEmail(email, roleAssignee.getDisplayInfo().getEmailAddress());
-            else
-                logger.info("Could not find role assignee in available list of assignees: " + roleAssignee.getIdentifier());
-        }
+        if (assignees.isEmpty()) {
+            if (recipient != null) {
+                if (recipient.isInstanceofDataverse()) {
+                    addEmail(emailList, getDataverseEmail((Dataverse) recipient));
+                } else if (recipient.isInstanceofDataset()) {
+                    Dataset d = (Dataset) recipient;
+                    for (DatasetField df : d.getLatestVersion().getFlatDatasetFields()) {
+                        if (df.getDatasetFieldType().getName().equals(DatasetFieldConstant.datasetContactEmail)) {
+                            addEmail(emailList, df.getValue());
+                        }
+                    }
 
-        if (recipient != null) {
-            if (recipient.isInstanceofDataverse()) {
-                addEmail(email, getDataverseEmail((Dataverse) recipient));
-            } else if (recipient.isInstanceofDataset()) {
-                Dataset d = (Dataset) recipient;
-                for (DatasetField df : d.getLatestVersion().getFlatDatasetFields()) {
-                    if (df.getDatasetFieldType().getName().equals(DatasetFieldConstant.datasetContactEmail)) {
-                        addEmail(email, df.getValue());
+                    if (emailList.isEmpty()) {
+                        addEmail(emailList, getDataverseEmail(d.getOwner()));
                     }
                 }
+            }
 
-                if (email.isEmpty()) {
-                    addEmail(email, getDataverseEmail(d.getOwner()));
-                }
+
+            if (emailList.isEmpty()) {
+                addEmail(emailList, DEFAULT_RECIPIENT_MAIL);
+            }
+        } else {
+            for (String assigneeIdentifier : assignees) {
+                final String mail = getEmailByIdentifier(assigneeIdentifier);
+                if (mail == null)
+                    logger.info("Could not find role assignee in available list of assignees: " + assigneeIdentifier);
+                else
+                    addEmail(emailList, mail);
             }
         }
 
-
-        if (email.isEmpty()) {
-            addEmail(email, defaultRecipientEmail);
-        }
-
-        String recipients = StringUtils.join(email, "," ) ;
+        String recipients = StringUtils.join(emailList, ",");
 
         if (isLoggedIn() && userMessage != null) {
             mailService.sendMail(loggedInUserEmail(), recipients, getMessageSubject(), userMessage);
@@ -255,6 +258,22 @@ public class SendFeedbackDialog implements java.io.Serializable {
     private static void addEmail(List<String> email, String recipient) {
         if (!email.contains(recipient))
             email.add(recipient);
+    }
+
+    /**
+     * getEmailByIdentifier
+     * <p/>
+     * Assuming this list will not be long.
+     *
+     * @param identifier of the recipient.
+     * @return An e-mail address if the recipient is in availableRoleAssignees list.
+     */
+    private String getEmailByIdentifier(String identifier) {
+        for (RoleAssignee roleAssignee : availableRoleAssignees) {
+            if (roleAssignee.getIdentifier().equals(identifier))
+                return roleAssignee.getDisplayInfo().getEmailAddress();
+        }
+        return null;
     }
 
     /**
@@ -281,11 +300,11 @@ public class SendFeedbackDialog implements java.io.Serializable {
         return availableRoleAssignees;
     }
 
-    public List<RoleAssignee> getRoleAssignees() {
+    public List<String> getRoleAssignees() {
         return this.assignees;
     }
 
-    public void setRoleAssignees(List<RoleAssignee> assignees) {
+    public void setRoleAssignees(List<String> assignees) {
         this.assignees = assignees;
     }
 
@@ -295,11 +314,10 @@ public class SendFeedbackDialog implements java.io.Serializable {
      * @return True or false if it is not so.
      */
     public boolean isAuthorized() {
-        return (
+        return
                 recipient != null
                         && isLoggedIn()
-                        && !roleService.assignmentsFor(dataverseSession.getUser(), recipient).isEmpty()
-        );
+                        && !roleService.assignmentsFor(dataverseSession.getUser(), recipient).isEmpty();
     }
 
 }
