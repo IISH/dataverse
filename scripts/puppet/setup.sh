@@ -57,6 +57,8 @@ function install_module {
 
 function main {
 
+    puppet_config
+
     # We will only update and install in the first provisioning step.
     # If ever you need to update again
     FIRSTRUN=/opt/firstrun
