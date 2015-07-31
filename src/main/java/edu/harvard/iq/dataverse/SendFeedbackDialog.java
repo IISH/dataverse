@@ -1,6 +1,7 @@
 package edu.harvard.iq.dataverse;
 
 import edu.harvard.iq.dataverse.authorization.RoleAssignee;
+import edu.harvard.iq.dataverse.util.BundleUtil;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
 
@@ -19,8 +20,6 @@ import java.util.Random;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import static edu.harvard.iq.dataverse.util.JsfHelper.JH;
-
 /**
  * @author Naomi
  * @author Lucien van Wouw <lwo@iisg.nl>
@@ -31,6 +30,7 @@ import static edu.harvard.iq.dataverse.util.JsfHelper.JH;
 public class SendFeedbackDialog implements java.io.Serializable {
 
     private static String DEFAULT_RECIPIENT_MAIL = "support@thedata.org";
+    private static List<String> blacklist = new ArrayList();
     private String userEmail = "";
     private String userMessage = "";
     private String messageSubject = "";
@@ -45,11 +45,11 @@ public class SendFeedbackDialog implements java.io.Serializable {
 
     @EJB
     MailServiceBean mailService;
-    @EJB
-    DataverseServiceBean dataverseService;
     @Inject
     DataverseSession dataverseSession;
 
+    @EJB
+    DataverseServiceBean dataverseServiceBean;
 
     @EJB
     DataverseRoleServiceBean roleService;
@@ -76,6 +76,15 @@ public class SendFeedbackDialog implements java.io.Serializable {
         userSum = null;
         availableRoleAssignees = new ArrayList<>(1);
         assignees = new ArrayList<>();
+
+        // Exclude users that have a role in the root
+        if (blacklist.isEmpty()) {
+            final Dataverse rootDataverse = dataverseServiceBean.findRootDataverse();
+            Set<RoleAssignment> roleAssignments = roleService.rolesAssignments(rootDataverse);
+            for (RoleAssignment roleAssignment : roleAssignments) {
+                blacklist.add(roleAssignment.getAssigneeIdentifier());
+            }
+        }
     }
 
     public Long getOp1() {
@@ -105,20 +114,20 @@ public class SendFeedbackDialog implements java.io.Serializable {
 
     public String getMessageTo() {
         if (recipient == null) {
-            return JH.localize("contact.support");
+            return BundleUtil.getStringFromBundle("contact.support");
         } else if (recipient.isInstanceofDataverse()) {
-            return ((Dataverse) recipient).getDisplayName() + " " + JH.localize("contact.contact");
+            return ((Dataverse) recipient).getDisplayName() + " " + BundleUtil.getStringFromBundle("contact.contact");
         } else
-            return JH.localize("dataset") + " " + JH.localize("contact.contact");
+            return BundleUtil.getStringFromBundle("dataset") + " " + BundleUtil.getStringFromBundle("contact.contact");
     }
 
     public String getFormHeader() {
         if (recipient == null) {
-            return JH.localize("contact.header");
+            return BundleUtil.getStringFromBundle("contact.header");
         } else if (recipient.isInstanceofDataverse()) {
-            return JH.localize("contact.dataverse.header");
+            return BundleUtil.getStringFromBundle("contact.dataverse.header");
         } else
-            return JH.localize("contact.dataset.header");
+            return BundleUtil.getStringFromBundle("contact.dataset.header");
     }
 
     public void setUserMessage(String mess) {
@@ -179,7 +188,7 @@ public class SendFeedbackDialog implements java.io.Serializable {
 
     }
 
-  public void validateUserEmail(FacesContext context, UIComponent component, Object value) throws ValidatorException {
+    public void validateUserEmail(FacesContext context, UIComponent component, Object value) throws ValidatorException {
 
         if (!EmailValidator.getInstance().isValid((String) value)) {
 
@@ -203,42 +212,32 @@ public class SendFeedbackDialog implements java.io.Serializable {
     }
 
     public String sendMessage() {
-        final List<String> emailList = new ArrayList<>();
 
         if (assignees.isEmpty()) {
             if (recipient != null) {
                 if (recipient.isInstanceofDataverse()) {
-                    addEmail(emailList, getDataverseEmail((Dataverse) recipient));
+                    assignees.add(getDataverseEmail((Dataverse) recipient));
                 } else if (recipient.isInstanceofDataset()) {
                     Dataset d = (Dataset) recipient;
                     for (DatasetField df : d.getLatestVersion().getFlatDatasetFields()) {
                         if (df.getDatasetFieldType().getName().equals(DatasetFieldConstant.datasetContactEmail)) {
-                            addEmail(emailList, df.getValue());
+                            assignees.add(df.getValue());
                         }
                     }
 
-                    if (emailList.isEmpty()) {
-                        addEmail(emailList, getDataverseEmail(d.getOwner()));
+                    if (assignees.isEmpty()) {
+                        assignees.add(getDataverseEmail(d.getOwner()));
                     }
                 }
             }
 
 
-            if (emailList.isEmpty()) {
-                addEmail(emailList, DEFAULT_RECIPIENT_MAIL);
-            }
-        } else {
-            for (String assigneeIdentifier : assignees) {
-                final String mail = getEmailByIdentifier(assigneeIdentifier);
-                if (mail == null)
-                    logger.info("Could not find role assignee in available list of assignees: " + assigneeIdentifier);
-                else
-                    addEmail(emailList, mail);
+            if (assignees.isEmpty()) {
+                assignees.add(DEFAULT_RECIPIENT_MAIL);
             }
         }
 
-        String recipients = StringUtils.join(emailList, ",");
-
+        final String recipients = StringUtils.join(assignees, ",");
         if (isLoggedIn() && userMessage != null) {
             mailService.sendMail(loggedInUserEmail(), recipients, getMessageSubject(), userMessage);
             userMessage = "";
@@ -255,9 +254,45 @@ public class SendFeedbackDialog implements java.io.Serializable {
         }
     }
 
-    private static void addEmail(List<String> email, String recipient) {
-        if (!email.contains(recipient))
-            email.add(recipient);
+    /**
+     * getRoleAssignees
+     * <p/>
+     * Create a list of users that have a role for this dataverse object.
+     *
+     * @return A list of Titles ( firstname and lastname ) and user identifiers
+     */
+    public List<RoleAssignee> getAvailableRoleAssignees() {
+
+        if (availableRoleAssignees.isEmpty() && isAuthorized()) {
+            final Set<RoleAssignment> ras = roleService.rolesAssignments(recipient);
+            for (RoleAssignment roleAssignment : ras) {
+                if (!blacklist.contains(roleAssignment.getAssigneeIdentifier())) {
+                    final RoleAssignee roleAssignee = roleAssigneeService.getRoleAssignee(roleAssignment.getAssigneeIdentifier());
+                    if (roleAssignee != null) {
+                        if (!availableRoleAssignees.contains(roleAssignee))
+                            availableRoleAssignees.add(roleAssignee);
+                    } else {
+                        logger.info("Could not find role assignee based on role assignment id " + roleAssignment.getId());
+                    }
+                }
+            }
+        }
+        return availableRoleAssignees;
+    }
+
+    public List<String> getRoleAssignees() {
+        return this.assignees;
+    }
+
+    public void setRoleAssignees(List<String> _assignees) {
+
+        for (String assigneeIdentifier : _assignees) {
+            final String mail = getEmailByIdentifier(assigneeIdentifier);
+            if (mail == null)
+                logger.info("Could not find role assignee in available list of assignees: " + assigneeIdentifier);
+            else
+                assignees.add(mail);
+        }
     }
 
     /**
@@ -274,38 +309,6 @@ public class SendFeedbackDialog implements java.io.Serializable {
                 return roleAssignee.getDisplayInfo().getEmailAddress();
         }
         return null;
-    }
-
-    /**
-     * getRoleAssignees
-     * <p/>
-     * Create a list of users that have a role for this dataverse object.
-     *
-     * @return A list of Titles ( firstname and lastname ) and user identifiers
-     */
-    public List<RoleAssignee> getAvailableRoleAssignees() {
-
-        if (availableRoleAssignees.isEmpty() && isAuthorized()) {
-            final Set<RoleAssignment> ras = roleService.rolesAssignments(recipient);
-            for (RoleAssignment roleAssignment : ras) {
-                final RoleAssignee roleAssignee = roleAssigneeService.getRoleAssignee(roleAssignment.getAssigneeIdentifier());
-                if (roleAssignee != null) {
-                    if (!availableRoleAssignees.contains(roleAssignee))
-                        availableRoleAssignees.add(roleAssignee);
-                } else {
-                    logger.info("Could not find role assignee based on role assignment id " + roleAssignment.getId());
-                }
-            }
-        }
-        return availableRoleAssignees;
-    }
-
-    public List<String> getRoleAssignees() {
-        return this.assignees;
-    }
-
-    public void setRoleAssignees(List<String> assignees) {
-        this.assignees = assignees;
     }
 
     /**

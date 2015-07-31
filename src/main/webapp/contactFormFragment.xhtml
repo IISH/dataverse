@@ -21,6 +21,12 @@
 
                 <!-- to: Bulk -->
                 <ui:fragment rendered="#{sendFeedbackDialog.authorized}">
+                    <style type="text/css">
+                        label {
+                            font-weight: normal;
+                            padding-left: 20px;
+                        }
+                    </style>
                     <div class="form-group">
                         <label for="roleAssignees" class="col-sm-3 control-label">Message to <span
                                 class="glyphicon glyphicon-asterisk text-danger"
@@ -30,7 +36,7 @@
                                                   validator="#{sendFeedbackDialog.validateRoleAssignees}"
                                                   layout="pageDirection"
                                                  >
-                                <f:selectItems value="#{sendFeedbackDialog.availableRoleAssignees}"
+                                <f:selectItems value="#{sendFeedbackDialog.availableRoleAssignees}" styleClass="mymenu"
                                                var="assignee"
                                                itemValue="#{assignee.identifier}"
                                                itemLabel="#{assignee.displayInfo.title}"/>
