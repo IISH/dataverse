@@ -5,22 +5,31 @@
  */
 package edu.harvard.iq.dataverse.engine.command.impl;
 
-import edu.harvard.iq.dataverse.*;
+import edu.harvard.iq.dataverse.DataFile;
+import edu.harvard.iq.dataverse.DataFileCategory;
+import edu.harvard.iq.dataverse.Dataset;
+import edu.harvard.iq.dataverse.DatasetVersionUser;
+import edu.harvard.iq.dataverse.DatasetField;
+import edu.harvard.iq.dataverse.FileMetadata;
 import edu.harvard.iq.dataverse.authorization.Permission;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
 import edu.harvard.iq.dataverse.engine.command.AbstractCommand;
+import edu.harvard.iq.dataverse.engine.command.Command;
 import edu.harvard.iq.dataverse.engine.command.CommandContext;
 import edu.harvard.iq.dataverse.engine.command.RequiredPermissions;
 import edu.harvard.iq.dataverse.engine.command.exception.CommandException;
 import edu.harvard.iq.dataverse.engine.command.exception.IllegalCommandException;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
-
-import javax.validation.ConstraintViolation;
 import java.sql.Timestamp;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.logging.Logger;
+import javax.validation.ConstraintViolation;
 
 /**
  *
@@ -32,23 +41,23 @@ public class UpdateDatasetCommand extends AbstractCommand<Dataset> {
     private static final Logger logger = Logger.getLogger(UpdateDatasetCommand.class.getCanonicalName());
     private final Dataset theDataset;
     private final List<FileMetadata> filesToDelete;
-
+    
     public UpdateDatasetCommand(Dataset theDataset, User user) {
         super(user, theDataset);
         this.theDataset = theDataset;
         this.filesToDelete = new ArrayList();
-    }
-
+    }    
+    
     public UpdateDatasetCommand(Dataset theDataset, User user, List<FileMetadata> filesToDelete) {
         super(user, theDataset);
         this.theDataset = theDataset;
         this.filesToDelete = filesToDelete;
     }
-
+    
     public UpdateDatasetCommand(Dataset theDataset, User user, DataFile fileToDelete) {
         super(user, theDataset);
         this.theDataset = theDataset;
-
+        
         // get the latest file metadata for the file; ensuring that it is a draft version
         this.filesToDelete = new ArrayList();
         for (FileMetadata fmd : theDataset.getEditVersion().getFileMetadatas()) {
@@ -57,7 +66,7 @@ public class UpdateDatasetCommand extends AbstractCommand<Dataset> {
                 break;
             }
         }
-    }
+    }    
 
     @Override
     public Dataset execute(CommandContext ctxt) throws CommandException {
@@ -86,7 +95,6 @@ public class UpdateDatasetCommand extends AbstractCommand<Dataset> {
     }
 
     public Dataset save(CommandContext ctxt)  throws CommandException {
-        
         Iterator<DatasetField> dsfIt = theDataset.getEditVersion().getDatasetFields().iterator();
         while (dsfIt.hasNext()) {
             if (dsfIt.next().removeBlankDatasetFieldValues()) {
@@ -107,27 +115,33 @@ public class UpdateDatasetCommand extends AbstractCommand<Dataset> {
             }
             dataFile.setModificationTime(updateTime);
         }
-
+        
         // Remove / delete any files that were removed
-        for (FileMetadata fmd : filesToDelete) {
+        for (FileMetadata fmd : filesToDelete) {              
             //  check if this file is being used as the default thumbnail
             if (fmd.getDataFile().equals(theDataset.getThumbnailFile())) {
                 logger.info("deleting the dataset thumbnail designation");
                 theDataset.setThumbnailFile(null);
             }
-
+            
             if (!fmd.getDataFile().isReleased()) {
                 // if file is draft (ie. new to this version, delete; otherwise just remove filemetadata object)
                 ctxt.engine().submit(new DeleteDataFileCommand(fmd.getDataFile(), getUser()));
                 theDataset.getFiles().remove(fmd.getDataFile());
                 theDataset.getEditVersion().getFileMetadatas().remove(fmd);
+                // added this check to handle issue where you could not deleter a file that shared a category with a new file
+                // the relation ship does not seem to cascade, yet somehow it was trying to merge the filemetadata
+                // todo: clean this up some when we clean the create / update dataset methods
+                for (DataFileCategory cat : theDataset.getCategories()) {
+                    cat.getFileMetadatas().remove(fmd);
+                }
             } else {
                 FileMetadata mergedFmd = ctxt.em().merge(fmd);
                 ctxt.em().remove(mergedFmd);
                 fmd.getDataFile().getFileMetadatas().remove(fmd);
                 theDataset.getEditVersion().getFileMetadatas().remove(fmd);
-            }
-        }
+            }      
+        }        
 
         String nonNullDefaultIfKeyNotFound = "";
         String doiProvider = ctxt.settings().getValueForKey(SettingsServiceBean.Key.DoiProvider, nonNullDefaultIfKeyNotFound);
