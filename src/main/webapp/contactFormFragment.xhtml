@@ -9,12 +9,42 @@
         <p:fragment>
             <h:form id="emailForm" class="form-horizontal">
                 <!-- to: Dataverse Support -->
+                <ui:fragment rendered="#{!sendFeedbackDialog.authorized}">
                 <div class="form-group">
                     <label for="messageTo" class="col-sm-3 control-label">#{bundle['contact.to']}</label>
                     <div class="col-sm-9">
                         <p id="messageTo" class="form-control-static">#{sendFeedbackDialog.getMessageTo()}</p>
                     </div>
                 </div>
+                </ui:fragment>
+
+                <!-- to: Bulk -->
+                <ui:fragment rendered="#{sendFeedbackDialog.authorized}">
+                    <style type="text/css">
+                        label {
+                            font-weight: normal;
+                            padding-left: 20px;
+                        }
+                    </style>
+                    <div class="form-group">
+                        <label for="roleAssignees" class="col-sm-3 control-label">Message to <span
+                                class="glyphicon glyphicon-asterisk text-danger"
+                                title="#{bundle.requiredField}"/></label>
+                        <div class="col-sm-9">
+                            <h:selectManyCheckbox id="roleAssignees" value="#{sendFeedbackDialog.roleAssignees}"
+                                                  validator="#{sendFeedbackDialog.validateRoleAssignees}"
+                                                  layout="pageDirection"
+                                                 >
+                                <f:selectItems value="#{sendFeedbackDialog.availableRoleAssignees}" styleClass="mymenu"
+                                               var="assignee"
+                                               itemValue="#{assignee.identifier}"
+                                               itemLabel="#{assignee.displayInfo.title}"/>
+                            </h:selectManyCheckbox>
+                            <h:message for="roleAssignees" styleClass="bg-danger text-danger"/>
+                        </div>
+                    </div>
+                </ui:fragment>
+
                 <ui:fragment rendered="#{sendFeedbackDialog.isLoggedIn()}">
                 <!-- from email (logged in + auto-filled) -->
                     <div class="form-group">
@@ -54,6 +84,7 @@
                     </div>
                 </div>
                 <!-- validation -->
+                <div class="form-group">
                 <div class="form-group">
                     <div class="col-sm-offset-3 col-sm-9">
                         <p>
