@@ -25,6 +25,7 @@ import edu.harvard.iq.dataverse.authorization.groups.impl.ipaddress.IpGroup;
 import edu.harvard.iq.dataverse.authorization.groups.impl.ipaddress.ip.IpAddressRange;
 import edu.harvard.iq.dataverse.authorization.groups.impl.shib.ShibGroup;
 import edu.harvard.iq.dataverse.authorization.providers.AuthenticationProviderRow;
+import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.authorization.users.User;
 import edu.harvard.iq.dataverse.util.DatasetFieldWalker;
 import java.util.Set;
@@ -67,6 +68,18 @@ public class JsonPrinter {
                 .add("displayInfo", jsonObjectBuilder()
                            .add("Title", displayInfo.getTitle())
                            .add("email", displayInfo.getEmailAddress()));
+    }
+
+    /**
+     * @todo Rename this to just "json" to match the other methods once "json(
+     * Dataverse dv )" is reviewed since in calls the "json( User u )" version
+     * and we want to keep it that way rather than calling this method.
+     */
+    public static JsonObjectBuilder jsonForAuthUser(AuthenticatedUser authenticatedUser) {
+        return jsonObjectBuilder()
+                .add("identifier", authenticatedUser.getIdentifier())
+                .add("id", authenticatedUser.getId()
+                );
     }
     
     public static JsonObjectBuilder json( RoleAssignment ra ) {
@@ -215,7 +228,39 @@ public class JsonPrinter {
 		
 		return bld;
 	}
-    
+
+    /**
+     * Export formats such as DDI require the citation to be included. See
+     * https://github.com/IQSS/dataverse/issues/2579 for more on DDI export.
+     *
+     * @todo Instead of having this separate method, should "citation" be added
+     * to the regular `json` method for DatasetVersion? Will anything break?
+     * Unit tests for that method could not be found.
+     */
+    public static JsonObjectBuilder jsonWithCitation(DatasetVersion dsv) {
+        JsonObjectBuilder dsvWithCitation = json(dsv);
+        dsvWithCitation.add("citation", dsv.getCitation());
+        return dsvWithCitation;
+    }
+
+    /**
+     * Export formats such as DDI require the persistent identifier components
+     * such as "protocol", "authority" and "identifier" to be included so we
+     * create a JSON object we can convert to a DatasetDTO which can include a
+     * DatasetVersionDTO, which has all the metadata fields we need to export.
+     * See https://github.com/IQSS/dataverse/issues/2579 for more on DDI export.
+     *
+     * @todo Instead of having this separate method, should "datasetVersion" be
+     * added to the regular `json` method for Dataset? Will anything break? Unit
+     * tests for that method could not be found. If we keep this method as-is
+     * should the method be renamed?
+     */
+    public static JsonObjectBuilder jsonAsDatasetDto(DatasetVersion dsv) {
+        JsonObjectBuilder datasetDtoAsJson = json(dsv.getDataset());
+        datasetDtoAsJson.add("datasetVersion", jsonWithCitation(dsv));
+        return datasetDtoAsJson;
+    }
+
     public static JsonArrayBuilder jsonFileMetadatas( Collection<FileMetadata> fmds ) {
         JsonArrayBuilder filesArr = Json.createArrayBuilder();
         for ( FileMetadata fmd : fmds ) {

@@ -19,7 +19,9 @@ import javax.persistence.JoinColumn;
 import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.ManyToOne;
+import javax.persistence.OrderBy;
 import javax.persistence.Table;
+import javax.persistence.Transient;
 import javax.persistence.Version;
 import org.hibernate.validator.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
@@ -101,6 +103,7 @@ public class FileMetadata implements Serializable {
      */
     @ManyToMany
     @JoinTable(indexes = {@Index(columnList="filecategories_id"),@Index(columnList="filemetadatas_id")})
+    @OrderBy("name")
     private List<DataFileCategory> fileCategories;
     
     public List<DataFileCategory> getCategories() {
@@ -282,6 +285,29 @@ public class FileMetadata implements Serializable {
         this.version = version;
     }
 
+    @Transient
+    private boolean selected;
+
+    public boolean isSelected() {
+        return selected;
+    }
+
+    public void setSelected(boolean selected) {
+        this.selected = selected;
+    }
+    
+    @Transient
+    private boolean restrictedUI;
+
+    public boolean isRestrictedUI() {
+        return restrictedUI;
+    }
+
+    public void setRestrictedUI(boolean restrictedUI) {
+        this.restrictedUI = restrictedUI;
+    }
+    
+    
 
     @Override
     public int hashCode() {

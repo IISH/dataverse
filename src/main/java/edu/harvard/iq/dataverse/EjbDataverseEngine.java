@@ -3,35 +3,36 @@ package edu.harvard.iq.dataverse;
 import edu.harvard.iq.dataverse.actionlogging.ActionLogRecord;
 import edu.harvard.iq.dataverse.actionlogging.ActionLogServiceBean;
 import edu.harvard.iq.dataverse.authorization.AuthenticationServiceBean;
+import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUserServiceBean;
+import edu.harvard.iq.dataverse.engine.DataverseEngine;
 import edu.harvard.iq.dataverse.authorization.Permission;
 import edu.harvard.iq.dataverse.authorization.groups.impl.explicit.ExplicitGroupServiceBean;
-import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUserServiceBean;
-import edu.harvard.iq.dataverse.authorization.users.User;
-import edu.harvard.iq.dataverse.engine.DataverseEngine;
 import edu.harvard.iq.dataverse.engine.command.Command;
 import edu.harvard.iq.dataverse.engine.command.CommandContext;
+import edu.harvard.iq.dataverse.engine.command.DataverseRequest;
 import edu.harvard.iq.dataverse.engine.command.exception.CommandException;
 import edu.harvard.iq.dataverse.engine.command.exception.PermissionException;
+import edu.harvard.iq.dataverse.search.IndexServiceBean;
+import edu.harvard.iq.dataverse.search.SearchServiceBean;
+import java.util.Map;
+import java.util.Set;
+import javax.ejb.EJB;
+import javax.ejb.Stateless;
+import javax.inject.Named;
+
 import edu.harvard.iq.dataverse.search.SolrIndexServiceBean;
 import edu.harvard.iq.dataverse.search.savedsearch.SavedSearchServiceBean;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
-
-import javax.ejb.EJB;
+import java.util.EnumSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.ejb.EJBException;
-import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
-import javax.inject.Named;
+import static javax.ejb.TransactionAttributeType.REQUIRES_NEW;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
-import java.util.EnumSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import static javax.ejb.TransactionAttributeType.REQUIRES_NEW;
 
 /**
  * An EJB capable of executing {@link Command}s in a JEE environment.
@@ -145,16 +146,16 @@ public class EjbDataverseEngine {
         final ActionLogRecord logRec = new ActionLogRecord(ActionLogRecord.ActionType.Command, aCommand.getClass().getCanonicalName());
 
         try {
-            logRec.setUserIdentifier( aCommand.getUser().getIdentifier() );
-
+            logRec.setUserIdentifier( aCommand.getRequest().getUser().getIdentifier() );
+            
             // Check permissions - or throw an exception
             Map<String, ? extends Set<Permission>> requiredMap = aCommand.getRequiredPermissions();
             if (requiredMap == null) {
                 throw new RuntimeException("Command " + aCommand + " does not define required permissions.");
             }
 
-            User user = aCommand.getUser();
-
+            DataverseRequest dvReq = aCommand.getRequest();
+            
             Map<String, DvObject> affectedDvObjects = aCommand.getAffectedDvObjects();
             logRec.setInfo( describe(affectedDvObjects) );
             for (Map.Entry<String, ? extends Set<Permission>> pair : requiredMap.entrySet()) {
@@ -164,14 +165,15 @@ public class EjbDataverseEngine {
                 }
                 DvObject dvo = affectedDvObjects.get(dvName);
 
-                Set<Permission> granted = (dvo != null) ? permissionService.permissionsFor(user, dvo)
+                Set<Permission> granted = (dvo != null) ? permissionService.permissionsFor(dvReq, dvo)
                         : EnumSet.allOf(Permission.class);
                 Set<Permission> required = requiredMap.get(dvName);
+                
                 if (!granted.containsAll(required)) {
                     required.removeAll(granted);
                     logRec.setActionResult(ActionLogRecord.Result.PermissionError);
                     throw new PermissionException("Can't execute command " + aCommand
-                            + ", because user " + aCommand.getUser()
+                            + ", because request " + aCommand.getRequest()
                             + " is missing permissions " + required
                             + " on Object " + dvo.accept(DvObject.NamePrinter),
                             aCommand,
@@ -180,21 +182,21 @@ public class EjbDataverseEngine {
             }
             try {
                 return aCommand.execute(getContext());
-
+                
             } catch ( EJBException ejbe ) {
-                logRec.setActionResult(ActionLogRecord.Result.InternalError);
+                logRec.setActionResult(ActionLogRecord.Result.InternalError);                
                 throw new CommandException("Command " + aCommand.toString() + " failed: " + ejbe.getMessage(), ejbe.getCausedByException(), aCommand);
             }
-
+            
         } catch ( RuntimeException re ) {
             logRec.setActionResult(ActionLogRecord.Result.InternalError);
-            logRec.setInfo( re.getMessage() );
-
-            Throwable cause = re;
+            logRec.setInfo( re.getMessage() );   
+            
+            Throwable cause = re;          
             while (cause != null) {
                 if (cause instanceof ConstraintViolationException) {
-                    StringBuilder sb = new StringBuilder();
-                    sb.append("Unexpected bean validation constraint exception:");
+                    StringBuilder sb = new StringBuilder(); 
+                    sb.append("Unexpected bean validation constraint exception:"); 
                     ConstraintViolationException constraintViolationException = (ConstraintViolationException) cause;
                     for (ConstraintViolation<?> violation : constraintViolationException.getConstraintViolations()) {
                         sb.append(" Invalid value: <<<").append(violation.getInvalidValue()).append(">>> for ").append(violation.getPropertyPath()).append(" at ").append(violation.getLeafBean()).append(" - ").append(violation.getMessage());
@@ -204,10 +206,10 @@ public class EjbDataverseEngine {
                     logRec.setInfo( sb.toString() );
                 }
                 cause = cause.getCause();
-            }
-
+            }           
+            
             throw re;
-
+            
         } finally {
             if ( logRec.getActionResult() == null ) {
                 logRec.setActionResult( ActionLogRecord.Result.OK );
@@ -220,7 +222,7 @@ public class EjbDataverseEngine {
     public CommandContext getContext() {
         if (ctxt == null) {
             ctxt = new CommandContext() {
-
+                
                 @Override
                 public DatasetServiceBean datasets() {
                     return datasetService;
@@ -290,7 +292,7 @@ public class EjbDataverseEngine {
                 public TemplateServiceBean templates() {
                     return templateService;
                 }
-
+                
                 @Override
                 public SavedSearchServiceBean savedSearches() {
                     return savedSearchService;
@@ -305,22 +307,17 @@ public class EjbDataverseEngine {
                 public DOIEZIdServiceBean doiEZId() {
                     return doiEZId;
                 }
-
+                
                 @Override
                 public HandlenetServiceBean handleNet() {
                     return handleNet;
                 }
 
                 @Override
-                public PidServiceBean pidWebservice() {
-                    return pidWebService;
-                }
-
-                @Override
                 public SettingsServiceBean settings() {
                     return settings;
                 }
-
+                
                 @Override
                 public GuestbookServiceBean guestbooks() {
                     return guestbookService;
@@ -330,12 +327,12 @@ public class EjbDataverseEngine {
                 public GuestbookResponseServiceBean responses() {
                     return responses;
                 }
-
+                
                 @Override
                 public DataverseLinkingServiceBean dvLinking() {
                     return dvLinking;
                 }
-
+                                
                 @Override
                 public DatasetLinkingServiceBean dsLinking() {
                     return dsLinking;
@@ -359,24 +356,24 @@ public class EjbDataverseEngine {
                 public RoleAssigneeServiceBean roleAssignees() {
                     return roleAssignees;
                 }
-
+                
                 @Override
                 public UserNotificationServiceBean notifications() {
                     return userNotificationService;
-                }
-
+                } 
+                
                 @Override
                 public AuthenticationServiceBean authentication() {
                     return authentication;
-                }
-
+                } 
+                
             };
         }
 
         return ctxt;
     }
-
-
+    
+    
     private String describe( Map<String, DvObject> dvObjMap ) {
         StringBuilder sb = new StringBuilder();
         for ( Map.Entry<String, DvObject> ent : dvObjMap.entrySet() ) {
