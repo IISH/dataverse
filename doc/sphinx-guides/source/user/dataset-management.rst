@@ -24,17 +24,39 @@ All file formats are supported, up to 10GB per file for the Harvard Dataverse. P
 The file types listed below are supported by additional functionality, which can include downloading in different formats, subsets, file-level metadata preservation, file-level data citation; and exploration 
 through data visualization and analysis. 
 
-Tabular
+Tabular Data Files
 --------------------
 
-Tabular files of recognized formats (Stata, SPSS, RData, Excel, CSV) can be further explored and manipulated through 
-`TwoRavens <../user/data-exploration/tworavens.html>`_ (a statistical data exploration application integrated with Dataverse) by performing various statistical analyses and downloading subsets of variables.
-To perform various statistical analyses on the data (including summary statistics) click on the "Explore" button, found next to 
-each relevant tabular file and this will take you to the `TwoRavens <../user/data-exploration/tworavens.html>`_ application in a new window. To download subsets of variables click on the "Download" button found next
-to a relevant tabular file and select "Data Subset" in the dropdown menu, which will open a new window that is powered by 
-TwoRavens for you to create your subset. For more information on `TwoRavens <../user/data-exploration/tworavens.html>`_ please read their `documentation <../user/data-exploration/tworavens.html>`_. Furthermore,
-within the "Download" button for tabular data you will find additional options including downloading: in the original file format,
-RDATA Format, Variable Metadata (`DDI Codebook <http://www.ddialliance.org/Specification/DDI-Codebook/>`_ XML file), Data Subset (as described earlier) and Data File Citation (currently in either RIS format or EndNote XML).
+Files in certain formats - Stata, SPSS, R, Excel(xlsx) and CSV - may
+be ingested as tabular data (see "Tabular Data Ingest" section for
+details). Tabular data files can be further explored and manipulated
+with `TwoRavens <../user/data-exploration/tworavens.html>`_ - a
+statistical data exploration application integrated with Dataverse. It
+allows the user to run statistical models, view summary statistics,
+download subsets of variable vectors and more. To start, click on the "Explore"
+button, found next to each relevant tabular file (the application
+will be opened in a new window). To download subsets of variables
+click on the "Download" button found next to a relevant tabular file
+and select "Data Subset" in the dropdown menu. You will then be able
+to create your subset using the interface opened in a new window (this
+functionality is also provided by the `TwoRavens
+<../user/data-exploration/tworavens.html>`_ project). See the `TwoRavens
+documentation section <../user/data-exploration/tworavens.html>`_ for
+more information.
+
+To use the ingest functionality for tabular files, a file can only be up to 2GB in size, however, to upload a tabular file without using ingest, a file can be up to 10GB in size.
+
+To use the ingest functionality for RData files, a file can only be up to 1MB in size, however, to upload a RData file without using ingest, a file can be up to 10GB in size.
+
+Additional download options available for tabular data (found
+in the same drop-down menu under the "Download" button): 
+
+- As tab-delimited data (with the variable names in the first row); 
+- The original file uploaded by the user; 
+- Saved as R data (if the original file was not in R format); 
+- Variable Metadata (as a `DDI Codebook <http://www.ddialliance.org/Specification/DDI-Codebook/>`_ XML file);
+- Data File Citation (currently in either RIS or EndNote XML format); 
+- All of the above, as a zipped bundle. 
 
 |image2|
 
@@ -82,7 +104,7 @@ Adding a New Dataset
    You can also upload your files directly from your Dropbox. **Tip:** You can drag and drop or select multiple files at a time from your desktop,
    directly into the upload widget. Your files will appear below the "Select Files to Add" button where you can add a
    description and tags (via the "Edit Tag" button) for each file. Additionally, an MD5 checksum will be added for each file. If you upload a tabular file a :ref:`Universal Numerical Fingerprint (UNF) <unf>` will be added to this file.
-#. Click the "Add Dataset" button when you are done. Your unpublished dataset is now created. 
+#. Click the "Save Dataset" button when you are done. Your unpublished dataset is now created. 
 
 Note 1: You can add additional metadata once you have completed the initial dataset creation by going to Edit Dataset > Metadata. 
 
@@ -96,28 +118,27 @@ We currently only support the following HTML tags for any of our textbox meatdat
 Edit Dataset
 ==================
 
-Go to your dataset page and click on the "Edit Dataset" button. There, depending on your level of permissions for this dataset,
-you will have the following options:
+Go to the dataset you would like to edit where you will see the listing of files. Select the files you would like to edit by using either the Select All checkbox or individually selecting files. Next, click on the Edit button above the files and select if you would like to:
 
-- Files (Upload or Edit Data): to add or edit files in this dataset.
-- Metadata: to add/edit metadata including additional metadata than was not previously available during Dataset Creation.
-- Terms: to view or modify the Waiver (if using CC0), Terms of Use, Terms of Access and Guestbook of this dataset.
-- Permissions: to view or modify the permissions and roles of this dataset and for individual files within.
-- Delete Dataset (only available before your Dataset is published)
-- Deaccession Dataset (only when your Dataset is published, see below)
+- Delete the selected files
+- Edit the file metadata (file name, description) for the selected files
+- Restrict the selected files
+- Unrestrict the selected files (only if the selected files are restricted)
+- Add tags to the selected files
 
-You can also directly select the Files, Metadata, Terms or Versions tabs found below the dataset summary information
-to specifically edit any of those parts of your dataset.
+All of these actions, besides editing file metadata, will happen within this page and not bring you to another page. If you restrict files, you will also be asked to fill out the Terms of Access for the files. If Terms of Access already exist, you will be asked to confirm them.
+
+Upload New Files
+===================
+
+To upload new files to a dataset, go the dataset you want to update and click on the Upload Files Button in the files tab. From there you will be brought to the Upload page for the dataset. Once you have uploaded files, you will be able to edit the file metadata, restrict, add tags, or delete them before saving.
 
 .. _license-terms:
 
 Terms
 =======================
 
-In the Terms tab, which can also be found by clicking on the Edit dropdown button of a Dataset, you can setup how users can use your data 
-once they have downloaded it (CC0 waiver or custom Terms of Use), how they can access your data if you have files that 
-are restricted (terms of access), and enable a Guestbook for your dataset so that you can track who is using your data and for
-what purposes. These are explained in further detail below:
+In the Terms tab, which can also be found by clicking on the Edit dropdown button of a Dataset, you can setup how users can use your data once they have downloaded it (CC0 waiver or custom Terms of Use), how they can access your data if you have files that are restricted (terms of access), and enable a Guestbook for your dataset so that you can track who is using your data and for what purposes. These are explained in further detail below:
 
 CC0 Waiver + Dataset Terms of Use 
 ---------------------------------------------------------------

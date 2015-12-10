@@ -20,9 +20,9 @@ By default installer pre-sets the Admin credentials as follows:
     Position: Admin
     Email: dataverse@mailinator.com
 
-Log in as the user dataverseAdmin and change these values to suit your installation. 
+Log in as the user dataverseAdmin with the password "admin" and change these values to suit your installation.
 
-(Alteratively, you can modify the file ``dvinstall/data/user-admin.json`` in the installer bundle **before** you run the installer). 
+(Alteratively, you can modify the file ``dvinstall/data/user-admin.json`` in the installer bundle **before** you run the installer. The password is in ``dvinstall/setup-all.sh``, which references this JSON file.)
 
 Solr Configuration
 ++++++++++++++++++
@@ -42,9 +42,16 @@ Settings
 ApplicationPrivacyPolicyUrl
 ---------------------------
 
-Specify a URL where users can read your Privacy Policy.
+Specify a URL where users can read your Privacy Policy, linked from the bottom of the page.
 
 ``curl -X PUT -d http://best-practices.dataverse.org/harvard-policies/harvard-privacy-policy.html http://localhost:8080/api/admin/settings/:ApplicationPrivacyPolicyUrl``
+
+ApplicationTermsOfUse
+---------------------
+
+Upload a text file containing the Terms of Use to be displayed at sign up.
+
+``curl -X PUT -d@/tmp/apptou.html http://localhost:8080/api/admin/settings/:ApplicationTermsOfUse``
 
 ApiTermsOfUse
 -------------
@@ -59,6 +66,13 @@ SolrHostColonPort
 Set ``SolrHostColonPort`` to override ``localhost:8983``.
 
 ``curl -X PUT -d localhost:8983 http://localhost:8080/api/admin/settings/:SolrHostColonPort``
+
+SearchHighlightFragmentSize
+---------------------------
+
+Set ``SearchHighlightFragmentSize`` to override the default value of 100 from https://wiki.apache.org/solr/HighlightingParameters#hl.fragsize
+
+``curl -X PUT -d 320 http://localhost:8080/api/admin/settings/:SearchHighlightFragmentSize``
 
 ShibEnabled
 -----------

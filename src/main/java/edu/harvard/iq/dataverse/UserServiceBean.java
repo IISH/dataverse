@@ -1,6 +1,7 @@
 package edu.harvard.iq.dataverse;
 
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
+import edu.harvard.iq.dataverse.search.IndexServiceBean;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
@@ -18,6 +19,10 @@ public class UserServiceBean {
     EntityManager em;
     
     @EJB IndexServiceBean indexService;
+
+    public AuthenticatedUser find(Object pk) {
+        return (AuthenticatedUser) em.find(AuthenticatedUser.class, pk);
+    }    
 
     public AuthenticatedUser save( AuthenticatedUser user ) {
         if ( user.getId() == null ) {

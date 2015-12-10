@@ -1,6 +1,6 @@
 package edu.harvard.iq.dataverse.authorization;
 
-import edu.harvard.iq.dataverse.IndexServiceBean;
+import edu.harvard.iq.dataverse.search.IndexServiceBean;
 import edu.harvard.iq.dataverse.actionlogging.ActionLogRecord;
 import edu.harvard.iq.dataverse.actionlogging.ActionLogServiceBean;
 import edu.harvard.iq.dataverse.authorization.exceptions.AuthenticationFailedException;
@@ -173,6 +173,14 @@ public class AuthenticationServiceBean {
         return em.find(AuthenticatedUser.class, pk);
     }
 
+    public void removeApiToken(AuthenticatedUser user){
+        if (user!=null) {
+            ApiToken apiToken = findApiTokenByUser(user);
+            if (apiToken != null) {
+                em.remove(apiToken);
+            }
+        }
+    }   
     /**
      * Use with care! This method was written primarily for developers
      * interested in API testing who want to:
@@ -353,6 +361,7 @@ public class AuthenticationServiceBean {
             return aToken;
         } else { 
             return em.merge( aToken );
+            
         }
     }
 

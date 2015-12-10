@@ -60,12 +60,12 @@ Theme + Widgets
 
 The Theme + Widgets feature provides you with a way to customize the look of your dataverse as well as provide code for you to put on your personal website to have your dataverse appear there. (For adding your dataverse to an OpenScholar site, follow these instructions.)
 
-For Theme, you can decide either to use the customization from the dataverse above yours or upload your own image file. Additionally, you can select the colors for the header of your dataverse and the text that appears in your dataverse. You can also add a link to your personal website, the website for your organization or institution, your department, journal, etc.
+For Theme, you can decide either to use the customization from the dataverse above yours or upload your own image file. Supported image types are jpeg, tiff, or png and should be no larger than 500kb. The maximum display for an image file in a dataverse's theme is 940 piels wide by 120 pixels high. Additionally, you can select the colors for the header of your dataverse and the text that appears in your dataverse. You can also add a link to your personal website, the website for your organization or institution, your department, journal, etc.
 
 There are two options for Widgets, a Dataverse Search box widget and a Dataverse Listing widget. The Dataverse Search Box will add a search box to your website that when someone enters a search term in and clicks Find, will bring them to Dataverse to see the results. The Dataverse Listing widget will provide a listing of all your dataverses and datasets. When someone clicks on a dataverse or dataset in the widget, it will bring them to your dataverse to see the actual data. Within the Widgets page, you can copy and paste the code for the widget you would like to have on your website. 
 
 Adding Widgets to an OpenScholar Website
-********************************************
+==============================================
 #. Log in to your OpenScholar website
 #. Either build a new page or navigate to the page you would like to use to show the Dataverse widgets.
 #. Click on the Settings Cog and select Layout
@@ -97,14 +97,15 @@ This roles can be removed at any time.
 
 Dataset Templates
 ======================
-Templates are useful when you have several datasets that have the same information in multiple metadata fields that you would prefer not to have to keep manually typing in. In Dataverse 4.0, templates are created at the dataverse level, can be deleted (so it does not show for future datasets), set to default (not required), and can be copied so you do not have to start over when creating a new template with similiar metadata from another template. When a template is deleted, it does not impact the datasets that have used the template already.
+Templates are useful when you have several datasets that have the same information in multiple metadata fields that you would prefer not to have to keep manually typing in or want to use a custom set of Terms of Use and Access for multiple datasets in a dataverse. In Dataverse 4.0, templates are created at the dataverse level, can be deleted (so it does not show for future datasets), set to default (not required), or can be copied so you do not have to start over when creating a new template with similiar metadata from another template. When a template is deleted, it does not impact the datasets that have used the template already.
 
 How do you create a template? 
 
 #. Navigate to your dataverse, click on the Edit Dataverse button and select Dataset Templates. 
 #. Once you have clicked on Dataset Templates, you will be brought to the Dataset Templates page. On this page, you can 1) decide to use the dataset templates from your parent dataverse 2) create a new dataset template or 3) do both.
 #. Click on the Create Dataset Template to get started. You will see that the template is the same as the create dataset page with an additional field at the top of the page to add a name for the template.
-#. After adding information into the metadata fields you have information for and clicking save, you will be brought back to the Manage Dataset Templates page and should see your template listed there now with several options. 
+#. After adding information into the metadata fields you have information for and clicking Save and Add Terms, you will be brought to the page where you can add custom Terms of Use and Access. If you do not need custom Terms of Use and Access, click the Save Dataset Template, and only the metadata fields will be saved.
+#. After clicking Save Dataset Template, you will be brought back to the Manage Dataset Templates page and should see your template listed there now with the make default, edit, view, or delete options. 
 #. A dataverse does not have to have a default template and users can select which template they would like to use while on the Create Dataset page. 
 #. You can also click on the View button on the Manage Dataset Templates page to see what metadata fields have information filled in.
 
@@ -147,7 +148,10 @@ Note: Featured Dataverses can only be used with published dataverses.
 
 Linked Dataverses + Linked Datasets
 ======================================================
-Coming soon in 4.0.2!
+
+Currently, the ability to link a dataverse to another dataverse or a dataset to a dataverse is a super user only feature. 
+
+If you need to have a dataverse or dataset linked in the Harvard Dataverse installation, please contact support@dataverse.org. 
 
 Publish Your Dataverse
 =================================================================

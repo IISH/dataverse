@@ -5,6 +5,8 @@
  */
 package edu.harvard.iq.dataverse.authorization.providers.builtin;
 
+import edu.harvard.iq.dataverse.DataFile;
+import edu.harvard.iq.dataverse.DataFileServiceBean;
 import edu.harvard.iq.dataverse.Dataset;
 import edu.harvard.iq.dataverse.DatasetServiceBean;
 import edu.harvard.iq.dataverse.DatasetVersionServiceBean;
@@ -12,24 +14,28 @@ import edu.harvard.iq.dataverse.Dataverse;
 import edu.harvard.iq.dataverse.DataverseHeaderFragment;
 import edu.harvard.iq.dataverse.DataverseServiceBean;
 import edu.harvard.iq.dataverse.DataverseSession;
+import edu.harvard.iq.dataverse.DvObject;
 import edu.harvard.iq.dataverse.PermissionServiceBean;
+import edu.harvard.iq.dataverse.RoleAssignment;
 import edu.harvard.iq.dataverse.UserNotification;
 import static edu.harvard.iq.dataverse.UserNotification.Type.CREATEDV;
 import edu.harvard.iq.dataverse.UserNotificationServiceBean;
 import edu.harvard.iq.dataverse.authorization.AuthenticationServiceBean;
 import edu.harvard.iq.dataverse.authorization.UserRecordIdentifier;
+import edu.harvard.iq.dataverse.authorization.groups.Group;
+import edu.harvard.iq.dataverse.authorization.groups.GroupServiceBean;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
+import edu.harvard.iq.dataverse.mydata.MyDataPage;
 import edu.harvard.iq.dataverse.passwordreset.PasswordValidator;
 import edu.harvard.iq.dataverse.util.JsfHelper;
 import static edu.harvard.iq.dataverse.util.JsfHelper.JH;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -69,6 +75,8 @@ public class BuiltinUserPage implements java.io.Serializable {
     @EJB
     DatasetServiceBean datasetService;
     @EJB
+    DataFileServiceBean fileService;
+    @EJB
     DatasetVersionServiceBean datasetVersionService;
     @EJB
     PermissionServiceBean permissionService;
@@ -76,6 +84,10 @@ public class BuiltinUserPage implements java.io.Serializable {
     BuiltinUserServiceBean builtinUserService;
     @EJB
     AuthenticationServiceBean authenticationService;
+    @EJB
+    GroupServiceBean groupService;
+    @Inject
+    MyDataPage mydatapage;
     
     @EJB
     AuthenticationServiceBean authSvc;
@@ -83,6 +95,7 @@ public class BuiltinUserPage implements java.io.Serializable {
     private AuthenticatedUser currentUser;
     private BuiltinUser builtinUser;    
     private EditMode editMode;
+    private String redirectPage = "dataverse.xhtml";    
 
     @NotBlank(message = "Please enter a password for your account.")
     private String inputPassword;
@@ -121,7 +134,19 @@ public class BuiltinUserPage implements java.io.Serializable {
 
     public void setEditMode(EditMode editMode) {
         this.editMode = editMode;
+        
+        if (editMode == EditMode.CREATE) {
+            JH.addMessage(FacesMessage.SEVERITY_INFO, JH.localize("user.signup.tip"));
+        }
     }
+
+    public String getRedirectPage() {
+        return redirectPage;
+    }
+
+    public void setRedirectPage(String redirectPage) {
+        this.redirectPage = redirectPage;
+    } 
 
     public String getInputPassword() {
         return inputPassword;
@@ -205,6 +230,9 @@ public class BuiltinUserPage implements java.io.Serializable {
                 case "notifications":
                     activeIndex = 1;
                     displayNotification();
+                    break;
+                case "dataRelatedToMe":
+                    mydatapage.init();
                     break;
                 // case "groupsRoles":
                     // activeIndex = 2;
@@ -407,7 +435,24 @@ public class BuiltinUserPage implements java.io.Serializable {
             userNotificationService.sendNotification(au,
                                                      new Timestamp(new Date().getTime()), 
                                                      UserNotification.Type.CREATEACC, null);
-            return "/dataverse.xhtml?alias=" + dataverseService.findRootDataverse().getAlias() + "&faces-redirect=true";
+
+            // go back to where user came from
+            if ("dataverse.xhtml".equals(redirectPage)) {
+                redirectPage = redirectPage + "&alias=" + dataverseService.findRootDataverse().getAlias();
+            }
+            
+            try {            
+                redirectPage = URLDecoder.decode(redirectPage, "UTF-8");
+            } catch (UnsupportedEncodingException ex) {
+                Logger.getLogger(BuiltinUserPage.class.getName()).log(Level.SEVERE, null, ex);
+                redirectPage = "dataverse.xhtml&alias=" + dataverseService.findRootDataverse().getAlias();
+            }
+
+            logger.log(Level.FINE, "Sending user to = {0}", redirectPage);
+
+            return redirectPage + (!redirectPage.contains("?") ? "?" : "&") + "faces-redirect=true";            
+            
+            
         } else {
             authSvc.updateAuthenticatedUser(currentUser, builtinUser.getDisplayInfo());
             editMode = null;
@@ -450,16 +495,61 @@ public class BuiltinUserPage implements java.io.Serializable {
         if (event.getTab().getId().equals("notifications")) {
             displayNotification();
         }
+        if (event.getTab().getId().equals("dataRelatedToMe")){
+            mydatapage.init();
+        }
+    }
+    
+    private String getRoleStringFromUser(AuthenticatedUser au, DvObject dvObj) {
+        // Find user's role(s) for given dataverse/dataset
+        Set<RoleAssignment> roles = permissionService.assignmentsFor(au, dvObj);
+        List<String> roleNames = new ArrayList();
+
+        // Include roles derived from a user's groups
+        Set<Group> groupsUserBelongsTo = groupService.groupsFor(au, dvObj);
+        for (Group g : groupsUserBelongsTo) {
+            roles.addAll(permissionService.assignmentsFor(g, dvObj));
+        }
+
+        for (RoleAssignment ra : roles) {
+            roleNames.add(ra.getRole().getName());
+        }
+        if (roleNames.isEmpty()){
+            return "[Unknown]";
+        }
+        return StringUtils.join(roleNames, "/");
     }
 
     public void displayNotification() {
         for (UserNotification userNotification : notificationsList) {
             switch (userNotification.getType()) {
+                case ASSIGNROLE:   
+                case REVOKEROLE:
+                    // Can either be a dataverse or dataset, so search both
+                    Dataverse dataverse = dataverseService.find(userNotification.getObjectId());
+                    if (dataverse != null) {
+                        userNotification.setRoleString(this.getRoleStringFromUser(this.getCurrentUser(), dataverse ));
+                        userNotification.setTheObject(dataverse);
+                    } else {
+                        Dataset dataset = datasetService.find(userNotification.getObjectId());
+                        if (dataset != null){
+                            userNotification.setRoleString(this.getRoleStringFromUser(this.getCurrentUser(), dataset ));
+                            userNotification.setTheObject(dataset);
+                        } else {
+                            DataFile datafile = fileService.find(userNotification.getObjectId());
+                            userNotification.setRoleString(this.getRoleStringFromUser(this.getCurrentUser(), datafile ));
+                            userNotification.setTheObject(datafile);
+                        }
+                    }
+                    break;
                 case CREATEDV:
                     userNotification.setTheObject(dataverseService.find(userNotification.getObjectId()));
                     break;
  
                 case REQUESTFILEACCESS:
+                    DataFile file = fileService.find(userNotification.getObjectId());
+                    userNotification.setTheObject(file.getOwner());
+                    break;
                 case GRANTFILEACCESS:
                 case REJECTFILEACCESS:
                     userNotification.setTheObject(datasetService.find(userNotification.getObjectId()));

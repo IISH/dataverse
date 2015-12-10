@@ -8,13 +8,13 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.inject.Named;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
-import javax.ws.rs.NotFoundException;
 
 /**
  * Service bean accessing a persistent hash map, used as settings in the application.
@@ -33,19 +33,38 @@ public class SettingsServiceBean {
      * So there.
      */
     public enum Key {
+        /**
+         * Override Solr highlighting "fragsize"
+         * https://wiki.apache.org/solr/HighlightingParameters#hl.fragsize
+         */
+        SearchHighlightFragmentSize,
        /**
         * Domain name specific code for Google Analytics
         *//**
         * Domain name specific code for Google Analytics
         */
         GoogleAnalyticsCode,
-        
+
+        /**
+         * Revert to MyData *not* using the Solr "permission documents" which
+         * was the behavior in Dataverse 4.2. Starting to use Solr permission
+         * documents in MyData has been introduced in 4.2.1 as a fix for
+         * https://github.com/IQSS/dataverse/issues/2649 where the "File
+         * Downloader" role was exposing cards for unpublished datasets when it
+         * shouldn't.
+         */
+        MyDataDoesNotUseSolrPermissionDocs,
         /**
          * Experimental: Allow non-public search with a key/token using the
          * Search API. See also https://github.com/IQSS/dataverse/issues/1299
          */
         SearchApiNonPublicAllowed,
         
+        /**
+         * Experimental: Use Solr to power the file listing on the dataset page.
+         */
+        FilesOnDatasetPageFromSolr,
+
         /**
          * API endpoints that are not accessible. Comma separated list.
          */
@@ -104,8 +123,14 @@ public class SettingsServiceBean {
         SolrHostColonPort,
         /** Key for limiting the number of bytes uploaded via the Data Deposit API, UI (web site and . */
         MaxFileUploadSizeInBytes,
+        /**
+         * Experimental: Key for if DDI export is enabled or disabled.
+         */
+        DdiExportEnabled,
         /** Key for if Shibboleth is enabled or disabled. */
         ShibEnabled,
+        /** Key for if Shibboleth is enabled or disabled. */
+        ShibUseHeaders,
         /** Key for if ScrubMigrationData is enabled or disabled. */
         ScrubMigrationData,
         /** Key for the url to send users who want to sign up to. */
@@ -143,7 +168,18 @@ public class SettingsServiceBean {
         /* full text of status message, to appear in popup */
         StatusMessageText,
         /* return email address for system emails such as notifications */
-        SystemEmail;
+        SystemEmail, 
+        /* whether file landing page is available
+        for 4.2 development */
+        ShowFileLandingPage,
+        /* size limit for Tabular data file ingests */
+        /* (can be set separately for specific ingestable formats; in which 
+        case the actual stored option will be TabularIngestSizeLimit:{FORMAT_NAME}
+        where {FORMAT_NAME} is the format identification tag returned by the 
+        getFormatName() method in the format-specific plugin; "sav" for the 
+        SPSS/sav format, "RData" for R, etc.
+        for example: :TabularIngestSizeLimit:RData */
+        TabularIngestSizeLimit;
         
         @Override
         public String toString() {
@@ -161,7 +197,7 @@ public class SettingsServiceBean {
      * Values that are considered as "true".
      * @see #isTrue(java.lang.String, boolean) 
      */
-    private static final Set<String> trueValues = Collections.unmodifiableSet(
+    private static final Set<String> TRUE_VALUES = Collections.unmodifiableSet(
             new TreeSet<>( Arrays.asList("1","yes", "true","allow")));
     
     /**
@@ -204,7 +240,7 @@ public class SettingsServiceBean {
             long valAsInt = Long.parseLong(val);
             return valAsInt;
         } catch (NumberFormatException ex) {
-            logger.warning("Incorrect setting.  Could not convert \"" + val + "\" from setting " + key.toString() + " to long.");
+            logger.log(Level.WARNING, "Incorrect setting.  Could not convert \"{0}\" from setting {1} to long.", new Object[]{val, key.toString()});
             return null;
         }
         
@@ -228,7 +264,7 @@ public class SettingsServiceBean {
     public String getValueForKey( Key key, String defaultValue ) {
         return get( key.toString(), defaultValue );
     }
-    
+     
     public Setting set( String name, String content ) {
         Setting s = new Setting( name, content );
         s = em.merge(s);
@@ -250,7 +286,7 @@ public class SettingsServiceBean {
      */
     public boolean isTrue( String name, boolean defaultValue ) {
         String val = get(name);
-        return ( val==null ) ? defaultValue : trueValues.contains(val.trim().toLowerCase() );
+        return ( val==null ) ? defaultValue : TRUE_VALUES.contains(val.trim().toLowerCase() );
     }
     
     public boolean isTrueForKey( Key key, boolean defaultValue ) {
