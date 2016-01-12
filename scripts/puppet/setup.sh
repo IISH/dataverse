@@ -13,14 +13,14 @@
 
 OPERATING_SYSTEM=$1
 if [ -z "$OPERATING_SYSTEM" ] ; then
-    echo "Operating system not specified"
-    exit 1
+    OPERATING_SYSTEM="ubuntu-12"
+    echo "Operating system not specified. Assuming ${OPERATING_SYSTEM}"
 fi
 
 ENVIRONMENT=$2
 if [ -z "$ENVIRONMENT" ] ; then
-    echo "environment not specified."
-    exit 1
+    ENVIRONMENT="development"
+    echo "Environment not specified. Assuming ${ENVIRONMENT}"
 fi
 
 
@@ -41,20 +41,6 @@ function puppet_config {
 }
 
 
-# install_module
-# Pull a module from git and install it.
-function install_module {
-    name=$1
-    package=$2
-    repo=$3
-
-    m=/etc/puppet/modules/$name
-    if [ -d $m ] ; then rm -rf $m ; fi
-    wget -O /tmp/$package $repo
-    puppet module install /tmp/$package
-    rm -f /tmp/$package
-}
-
 function main {
 
     puppet_config
@@ -66,13 +52,28 @@ function main {
 
         # Before we continue let us ensure we run the latests packages at the first run.
         case $OPERATING_SYSTEM in
-            centos*)
-                yum update
-                yum -y install unzip
+            centos-6)
+                rpm -ivh https://yum.puppetlabs.com/puppetlabs-release-el-6.noarch.rpm
+                yum -y update
+                yum -y install puppet
             ;;
-            ubuntu*)
-                apt-get update
-                apt-get -y install unzip
+            ubuntu-12|precise)
+                wget https://apt.puppetlabs.com/puppetlabs-release-precise.deb
+                dpkg -i puppetlabs-release-precise.deb
+                apt-get -y update
+                apt-get -y install puppet
+            ;;
+            ubuntu-14|trusty)
+                wget https://apt.puppetlabs.com/puppetlabs-release-trusty.deb
+                dpkg -i puppetlabs-release-trusty.deb
+                apt-get -y update
+                apt-get -y install puppet
+            ;;
+            ubuntu-15|vivid)
+                wget https://apt.puppetlabs.com/puppetlabs-release-vivid.deb
+                dpkg -i puppetlabs-release-vivid.deb
+                apt-get -y update
+                apt-get -y install puppet
             ;;
             *)
                 echo "Operating system ${OPERATING_SYSTEM} not supported."
@@ -84,24 +85,19 @@ function main {
         # Get the most recent puppet agent.
         sudo puppet resource package puppet ensure=latest
 
-
         # Install the puppet modules we need.
-        install_module glassfish "fatmcgav-glassfish-0.6.0.tar.gz" "https://github.com/IISH/fatmcgav-glassfish/archive/dataverse.tar.gz"
-        install_module iqss "iish-iqss-0.1.0.tar.gz" "https://github.com/iish/iish-iqss/archive/v0.1.0.tar.gz"
+        puppet module install lwo-dataverse
 
+        puppet apply /vagrant/scripts/puppet/manifest.pp --debug
 
-        # The puppet Iqss module provides for utility scripts that came from the dataverse code repository.
-        # The code base may be ahead of those in the module, hence we copy the configuration and relevant script files to the iqss puppet module.
-        files=/etc/puppet/modules/iqss/files/dataverse
-        if [ ! -d $files/scripts ] ; then mkdir -p $files/scripts ; fi
-        rsync -av --delete --progress --exclude puppet /dataverse/conf/             $files/conf
-        rsync -av --delete --progress                  /dataverse/scripts/api/      $files/scripts/api
-        rsync -av --delete --progress                  /dataverse/scripts/database/ $files/scripts/database
-
-        touch $FIRSTRUN
+        if [[ $? == 0 ]] ; then
+            touch $FIRSTRUN
+        fi
     else
         echo "Repositories are already updated and puppet modules are installed. To update and reinstall, remove the file ${FIRSTRUN}"
     fi
+
+
 }
 
 main

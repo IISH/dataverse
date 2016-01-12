@@ -1,8 +1,0 @@
----
-:backends:
-  - json
-:json:
-  :datadir: '/dataverse/conf/puppet/hieradata'
-:hierarchy:
-  - development
-  - defaults
