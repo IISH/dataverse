@@ -91,8 +91,8 @@
 VAGRANTFILE_API_VERSION = '2'
 HOSTNAME = 'standalone'
 DEFAULT_ENVIRONMENT = 'development'
-DEFAULT_OPERATING_SYSTEM = 'centos-6'
-DEFAULT_PROVISIONER='dataverse'
+DEFAULT_OPERATING_SYSTEM = 'ubuntu-12'
+DEFAULT_PROVISIONER='puppet'
 
 provisioner = if ENV['PROVISIONER'].nil? or ENV['PROVISIONER'] == 'default' then DEFAULT_PROVISIONER else ENV['PROVISIONER'] end
 puts "Provisioning by #{provisioner}"
@@ -120,7 +120,7 @@ else
 end
 puts "Running on box #{box}"
 
-    mailserver = "localhost"
+    mailserver = 'localhost'
     if ENV['MAIL_SERVER'].nil?
       puts "MAIL_SERVER environment variable not specified. Using #{mailserver} by default.\nTo specify it in bash: export MAIL_SERVER=localhost"
     else
@@ -142,49 +142,26 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     standalone.vm.box = box
 
 
-    config.vm.network "private_network", type: "dhcp"
-    config.vm.network "forwarded_port", guest: 80, host: 8888
-    config.vm.network "forwarded_port", guest: 443, host: 9999
-    config.vm.network "forwarded_port", guest: 8983, host: 8983
-#    config.vm.network "forwarded_port", guest: 8080, host: 8088
-    config.vm.network "forwarded_port", guest: 5432, host: 5432
+    config.vm.network 'private_network', type: 'dhcp'
+    config.vm.network 'forwarded_port', guest: 80, host: 8888
+    config.vm.network 'forwarded_port', guest: 443, host: 9999
+    config.vm.network 'forwarded_port', guest: 5432, host: 5432
+    config.vm.network 'forwarded_port', guest: 6311, host: 6311
+    config.vm.network 'forwarded_port', guest: 8983, host: 8983
 
-    config.vm.synced_folder ".", "/dataverse"
+    config.vm.synced_folder 'glassfish', '/home/glassfish'
   end
 
 
   if provisioner == 'puppet'
     config.vm.provision 'shell', path: 'scripts/puppet/setup.sh', args: [operating_system, environment]
     # Vagrant/Puppet docs:
-    #   http://docs.vagrantup.com/v2/provisioning/puppet_apply.html
-    config.vm.provision :puppet do |puppet|
-      puppet.hiera_config_path = 'scripts/puppet/hiera.yaml'
-      puppet.manifest_file = 'default.pp'
-      puppet.manifests_path = 'scripts/puppet/manifests'
-      puppet.options = "--verbose --debug --environment #{environment} --reports none"
-    end
   else
-    config.vm.provision "shell", path: "scripts/vagrant/setup.sh"
-    config.vm.provision "shell", path: "scripts/vagrant/setup-solr.sh"
-    config.vm.provision "shell", path: "scripts/vagrant/install-dataverse.sh", args: mailserver
+    config.vm.provision 'shell', path: 'scripts/vagrant/setup.sh'
+    config.vm.provision 'shell', path: 'scripts/vagrant/setup-solr.sh'
+    config.vm.provision 'shell', path: 'scripts/vagrant/install-dataverse.sh', args: mailserver
     # FIXME: get tests working and re-enable them!
     #config.vm.provision "shell", path: "scripts/vagrant/test.sh"
-  end
-
-
-  config.vm.define "solr", autostart: false do |solr|
-    config.vm.hostname = "solr"
-    solr.vm.box = box
-    config.vm.synced_folder ".", "/dataverse"
-    config.vm.network "private_network", type: "dhcp"
-    config.vm.network "forwarded_port", guest: 8983, host: 9001
-  end
-
-  config.vm.define "test", autostart: false do |test|
-    config.vm.hostname = "test"
-    test.vm.box = box
-    config.vm.synced_folder ".", "/dataverse"
-    config.vm.network "private_network", type: "dhcp"
   end
 
 end
