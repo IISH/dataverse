@@ -19,4 +19,6 @@ class {
   'dataverse::solr':      # Solr
 }->class {
   'dataverse::dataverse': # Dataverse
+    package => 'dataverse-4.2.1',
+    repository => 'https://bamboo.socialhistoryservices.org/browse/DATAVERSE-PRODUCTION/latestSuccessful/artifact/JOB1/4.2.1/dataverse-4.2.1.war' ;
 }#->class { #  'dataverse::tworavens': # TwoRavens add-on #}
