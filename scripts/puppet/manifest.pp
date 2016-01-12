@@ -10,9 +10,9 @@
 #
 # A manifest to combine the configuration plus data and apply it to a host.
 
-#class {
-#  'dataverse::rserve':    # RServe
-#}->
+class {
+  'dataverse::rserve':    # RServe
+}->
 class {
   'dataverse::database':  # Our database
 }->class {
