@@ -38,7 +38,7 @@ import java.util.zip.ZipOutputStream;
  * @author Leonid Andreev
  */
 public class DataFileZipper {
-    public static long DEFAULT_ZIPFILE_LIMIT = 10 * 1024 * 1024; // 10MB (?)
+    public static long DEFAULT_ZIPFILE_LIMIT = 100 * 1024 * 1024; // 100MB
     
     private static final Logger logger = Logger.getLogger(DataFileZipper.class.getCanonicalName());
     
