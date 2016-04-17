@@ -186,7 +186,7 @@ public class UpdateDatasetCommand extends AbstractCommand<Dataset> {
                     //EZID down possibly
                 }
             }
-        }  else if (theDataset.getProtocol().equals("hdl") && doiProvider.equals("IISH") && theDataset.getGlobalIdCreateTime() == null) {
+        } else if (theDataset.getProtocol().equals("hdl") && doiProvider.equals("IISH") && theDataset.getGlobalIdCreateTime() == null) {
             if (ctxt.pidWebservice().pidExists(theDataset)) {
                 theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
             } else {
