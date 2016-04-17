@@ -29,7 +29,6 @@ import java.util.Date;
 import java.util.List;
 
 /**
- *
  * @author skraffmiller
  */
 
@@ -62,11 +61,11 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
         String nonNullDefaultIfKeyNotFound = "";
         String    protocol = theDataset.getProtocol();
         String    doiProvider = ctxt.settings().getValueForKey(SettingsServiceBean.Key.DoiProvider, nonNullDefaultIfKeyNotFound);
-        String    authority = theDataset.getAuthority();        
+        String    authority = theDataset.getAuthority();
         if (theDataset.getGlobalIdCreateTime() == null) {
             if (protocol.equals("doi")
                     && doiProvider.equals("EZID")) {
-                String doiRetString = ctxt.doiEZId().createIdentifier(theDataset);               
+                String doiRetString = ctxt.doiEZId().createIdentifier(theDataset);
                 if (doiRetString.contains(theDataset.getIdentifier())) {
                     theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
                 } else {
@@ -82,6 +81,15 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
                           throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact Dataverse Support for assistance.", this);
                     }
                 }
+            } else if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
+                if (ctxt.pidWebservice().pidExists(theDataset)) {
+                    final String identifier = ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator());
+                    theDataset.setIdentifier(identifier);
+                    if (ctxt.pidWebservice().pidExists(theDataset)) {
+                        throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact thedata.org for assistance.", this);
+                    }
+                }
+                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
             } else {
                  throw new IllegalCommandException("This dataset may not be published because its DOI provider is not supported. Please contact Dataverse Support for assistance.", this);
             }
@@ -137,18 +145,18 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
             if (dataFile.getPublicationDate() == null) {
                 // this is a new, previously unpublished file, so publish by setting date
                 dataFile.setPublicationDate(updateTime);
-                
+
                 // check if any prexisting roleassignments have file download and send notifications
                 List<RoleAssignment> ras = ctxt.roles().directRoleAssignments(dataFile);
                 for (RoleAssignment ra : ras) {
                     if (ra.getRole().permissions().contains(Permission.DownloadFile)) {
                         for (AuthenticatedUser au : ctxt.roleAssignees().getExplicitUsers(ctxt.roleAssignees().getRoleAssignee(ra.getAssigneeIdentifier()))) {
-                            ctxt.notifications().sendNotification(au, new Timestamp(new Date().getTime()), UserNotification.Type.GRANTFILEACCESS, theDataset.getId());                                       
+                            ctxt.notifications().sendNotification(au, new Timestamp(new Date().getTime()), UserNotification.Type.GRANTFILEACCESS, theDataset.getId());
                         }
                     }
-                }                                
+                }
             }
-            
+
             // set the files restriction flag to the same as the latest version's
             if (dataFile.getFileMetadata() != null && dataFile.getFileMetadata().getDatasetVersion().equals(theDataset.getLatestVersion())) {
                 dataFile.setRestricted(dataFile.getFileMetadata().isRestricted());
@@ -174,7 +182,7 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
             if (dsf.getDatasetFieldType().getName().equals(DatasetFieldConstant.subject)) {
                 subject = dsf;
                 break;
-            }   
+            }
         }
         if (subject != null) {
             Dataverse dv = savedDataset.getOwner();
@@ -184,9 +192,9 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
                 }
                 dv = dv.getOwner();
             }
-        }        
-        
-        
+        }
+
+
         DatasetVersionUser ddu = ctxt.datasets().getDatasetVersionUser(savedDataset.getLatestVersion(), this.getUser());
 
         if (ddu != null) {
@@ -203,7 +211,12 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
             ctxt.em().merge(datasetDataverseUser);
         }
 
-        ctxt.doiEZId().publicizeIdentifier(savedDataset);
+        if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
+            ctxt.pidWebservice().publicizeIdentifier(savedDataset);
+        } else {
+            ctxt.doiEZId().publicizeIdentifier(savedDataset);
+        }
+
         return savedDataset;
     }
 
