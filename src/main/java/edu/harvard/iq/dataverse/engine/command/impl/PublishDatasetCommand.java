@@ -91,28 +91,18 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
                     } else {
                         throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact Dataverse Support for assistance.", this);
                     }
+                } else {
+                    throw new IllegalCommandException("This dataset may not be published because its DOI provider is not supported. Please contact Dataverse Support for assistance.", this);
                 }
-                
-                if (doiProvider.equals("DataCite")) {
-                    try {
-                        if (!ctxt.doiDataCite().alreadyExists(theDataset)) {
-                            ctxt.doiDataCite().createIdentifier(theDataset);
-                            theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
-                        } else {
-                            theDataset.setIdentifier(ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator()));
-                            if (!ctxt.doiDataCite().alreadyExists(theDataset)) {
-                                ctxt.doiDataCite().createIdentifier(theDataset);
-                                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
-                            } else {
-                                throw new IllegalCommandException("This dataset may not be published because its identifier is already in use by another dataset. Please contact Dataverse Support for assistance.", this);
-                            }
-                        }
-                    } catch (Exception e) {
-                        throw new CommandException(ResourceBundle.getBundle("Bundle").getString("dataset.publish.error.datacite"), this);
+            } else if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
+                if (ctxt.pidWebservice().pidExists(theDataset)) {
+                    final String identifier = ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator());
+                    theDataset.setIdentifier(identifier);
+                    if (ctxt.pidWebservice().pidExists(theDataset)) {
+                        throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact thedata.org for assistance.", this);
                     }
                 }
-            } else {
-                throw new IllegalCommandException("This dataset may not be published because its DOI provider is not supported. Please contact Dataverse Support for assistance.", this);
+                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
             }
         }
         
@@ -210,6 +200,9 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
             ctxt.em().merge(datasetDataverseUser);
         }
 
+        if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
+            ctxt.pidWebservice().publicizeIdentifier(savedDataset);
+        }
         if (protocol.equals("doi")
                 && doiProvider.equals("EZID")) {
             ctxt.doiEZId().publicizeIdentifier(savedDataset);

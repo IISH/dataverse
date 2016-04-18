@@ -159,6 +159,10 @@ public class CreateDatasetCommand extends AbstractCommand<Dataset> {
                     theDataset.setGlobalIdCreateTime(createDate);
                 }
 
+            } else if (protocol.equals("hdl")
+                    && doiProvider.equals("IISH")) {
+                ctxt.pidWebservice().publicizeIdentifier(theDataset);
+                theDataset.setGlobalIdCreateTime(createDate);
             }
 
         } else // If harvest or migrate, and this is a released dataset, we don't need to register,
