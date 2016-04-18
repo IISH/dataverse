@@ -1,7 +1,13 @@
 package edu.harvard.iq.dataverse.engine.command.impl;
 
-import edu.harvard.iq.dataverse.*;
+import edu.harvard.iq.dataverse.DataFile;
+import edu.harvard.iq.dataverse.Dataset;
+import edu.harvard.iq.dataverse.DatasetVersionUser;
+import edu.harvard.iq.dataverse.DatasetField;
+import edu.harvard.iq.dataverse.DatasetVersion;
 import edu.harvard.iq.dataverse.DatasetVersion.VersionState;
+import edu.harvard.iq.dataverse.RoleAssignment;
+import edu.harvard.iq.dataverse.Template;
 import edu.harvard.iq.dataverse.api.imports.ImportUtil;
 import edu.harvard.iq.dataverse.api.imports.ImportUtil.ImportType;
 import edu.harvard.iq.dataverse.authorization.Permission;
@@ -14,8 +20,6 @@ import edu.harvard.iq.dataverse.engine.command.RequiredPermissions;
 import edu.harvard.iq.dataverse.engine.command.exception.CommandException;
 import edu.harvard.iq.dataverse.engine.command.exception.IllegalCommandException;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
-
-import javax.validation.ConstraintViolation;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -25,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.validation.ConstraintViolation;
 
 /**
  * Creates a {@link Dataset} in the passed {@link CommandContext}.
@@ -134,27 +139,32 @@ public class CreateDatasetCommand extends AbstractCommand<Dataset> {
             theDataset.setIdentifier(ctxt.datasets().generateIdentifierSequence(theDataset.getProtocol(), theDataset.getAuthority(), theDataset.getDoiSeparator()));
         }
         // Attempt the registration if importing dataset through the API, or the app (but not harvest or migrate)
-        if ((importType==null || importType.equals(ImportType.NEW)) 
-            && protocol.equals("doi") 
-            && doiProvider.equals("EZID") 
-            && theDataset.getGlobalIdCreateTime() == null) {
-            String doiRetString = ctxt.doiEZId().createIdentifier(theDataset); 
-            // Check return value to make sure registration succeeded
-            if (doiRetString.contains(theDataset.getIdentifier())) {
-                theDataset.setGlobalIdCreateTime(createDate);
-            } 
-        }else if ((importType==null || importType.equals(ImportType.NEW))
-                && protocol.equals("hdl")
-                && doiProvider.equals("IISH")
+        if ((importType == null || importType.equals(ImportType.NEW))
                 && theDataset.getGlobalIdCreateTime() == null) {
-            ctxt.pidWebservice().publicizeIdentifier(theDataset);
-            theDataset.setGlobalIdCreateTime(createDate);
-        } else {
-            // If harvest or migrate, and this is a released dataset, we don't need to register,
-            // so set the globalIdCreateTime to now
-            if (theDataset.getLatestVersion().getVersionState().equals(VersionState.RELEASED) ){
-                theDataset.setGlobalIdCreateTime(new Date());
+            if (protocol.equals("doi")) {
+                String doiRetString = "";
+                if (doiProvider.equals("EZID")) {
+                    doiRetString = ctxt.doiEZId().createIdentifier(theDataset);
+                }
+                if (doiProvider.equals("DataCite")) {
+                    try{
+                        doiRetString = ctxt.doiDataCite().createIdentifier(theDataset);
+                    } catch (Exception e){
+                         logger.log(Level.WARNING, "Exception while creating Identifier:" + e.getMessage(), e);
+                    }
+                }
+
+                // Check return value to make sure registration succeeded
+                if (doiProvider.equals("EZID") && doiRetString.contains(theDataset.getIdentifier())) {
+                    theDataset.setGlobalIdCreateTime(createDate);
+                }
+
             }
+
+        } else // If harvest or migrate, and this is a released dataset, we don't need to register,
+        // so set the globalIdCreateTime to now
+        if (theDataset.getLatestVersion().getVersionState().equals(VersionState.RELEASED)) {
+            theDataset.setGlobalIdCreateTime(new Date());
         }
         
         if (registrationRequired && theDataset.getGlobalIdCreateTime() == null) {

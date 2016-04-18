@@ -24,15 +24,16 @@ import edu.harvard.iq.dataverse.engine.command.exception.CommandException;
 import edu.harvard.iq.dataverse.engine.command.exception.IllegalCommandException;
 import edu.harvard.iq.dataverse.search.IndexResponse;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.List;
+import java.util.ResourceBundle;
 
 /**
  *
  * @author skraffmiller
  */
-
 @RequiredPermissions(Permission.PublishDataset)
 public class PublishDatasetCommand extends AbstractCommand<Dataset> {
 
@@ -58,44 +59,7 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
         if (!theDataset.getOwner().isReleased()) {
             throw new IllegalCommandException("This dataset may not be published because its host dataverse (" + theDataset.getOwner().getAlias() + ") has not been published.", this);
         }
-        /* make an attempt to register if not registered */
-        String nonNullDefaultIfKeyNotFound = "";
-        String    protocol = theDataset.getProtocol();
-        String    doiProvider = ctxt.settings().getValueForKey(SettingsServiceBean.Key.DoiProvider, nonNullDefaultIfKeyNotFound);
-        String    authority = theDataset.getAuthority();
-        if (theDataset.getGlobalIdCreateTime() == null) {
-            if (protocol.equals("doi")
-                    && doiProvider.equals("EZID")) {
-                String doiRetString = ctxt.doiEZId().createIdentifier(theDataset);
-                if (doiRetString.contains(theDataset.getIdentifier())) {
-                    theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
-                } else {
-                    if (doiRetString.contains("identifier already exists")){
-                        theDataset.setIdentifier(ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator()));
-                        doiRetString = ctxt.doiEZId().createIdentifier(theDataset);
-                        if(!doiRetString.contains(theDataset.getIdentifier())){
-                            throw new IllegalCommandException("This dataset may not be published because its identifier is already in use by another dataset. Please contact Dataverse Support for assistance.", this);
-                        } else{
-                            theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
-                        }
-                    } else {
-                          throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact Dataverse Support for assistance.", this);
-                    }
-                }
-            } else if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
-                if (ctxt.pidWebservice().pidExists(theDataset)) {
-                    final String identifier = ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator());
-                    theDataset.setIdentifier(identifier);
-                    if (ctxt.pidWebservice().pidExists(theDataset)) {
-                        throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact thedata.org for assistance.", this);
-                    }
-                }
-                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
-            } else {
-                 throw new IllegalCommandException("This dataset may not be published because its DOI provider is not supported. Please contact Dataverse Support for assistance.", this);
-            }
-        }
-
+        
         if (theDataset.getLatestVersion().isReleased()) {
             throw new IllegalCommandException("Latest version of dataset " + theDataset.getIdentifier() + " is already released. Only draft versions can be released.", this);
         }
@@ -103,7 +67,55 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
         if (minorRelease && !theDataset.getLatestVersion().isMinorUpdate()) {
             throw new IllegalCommandException("Cannot release as minor version. Re-try as major release.", this);
         }
-
+        /* make an attempt to register if not registered */
+        String nonNullDefaultIfKeyNotFound = "";
+        String protocol = theDataset.getProtocol();
+        String doiProvider = ctxt.settings().getValueForKey(SettingsServiceBean.Key.DoiProvider, nonNullDefaultIfKeyNotFound);
+        String authority = theDataset.getAuthority();
+        if (theDataset.getGlobalIdCreateTime() == null) {
+            if (protocol.equals("doi")
+                    && (doiProvider.equals("EZID") || doiProvider.equals("DataCite"))) {
+                String doiRetString = "";
+                if (doiProvider.equals("EZID")) {
+                    doiRetString = ctxt.doiEZId().createIdentifier(theDataset);
+                    if (doiRetString.contains(theDataset.getIdentifier())) {
+                        theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
+                    } else if (doiRetString.contains("identifier already exists")) {
+                        theDataset.setIdentifier(ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator()));
+                        doiRetString = ctxt.doiEZId().createIdentifier(theDataset);
+                        if (!doiRetString.contains(theDataset.getIdentifier())) {
+                            throw new IllegalCommandException("This dataset may not be published because its identifier is already in use by another dataset. Please contact Dataverse Support for assistance.", this);
+                        } else {
+                            theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
+                        }
+                    } else {
+                        throw new IllegalCommandException("This dataset may not be published because it has not been registered. Please contact Dataverse Support for assistance.", this);
+                    }
+                }
+                
+                if (doiProvider.equals("DataCite")) {
+                    try {
+                        if (!ctxt.doiDataCite().alreadyExists(theDataset)) {
+                            ctxt.doiDataCite().createIdentifier(theDataset);
+                            theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
+                        } else {
+                            theDataset.setIdentifier(ctxt.datasets().generateIdentifierSequence(protocol, authority, theDataset.getDoiSeparator()));
+                            if (!ctxt.doiDataCite().alreadyExists(theDataset)) {
+                                ctxt.doiDataCite().createIdentifier(theDataset);
+                                theDataset.setGlobalIdCreateTime(new Timestamp(new Date().getTime()));
+                            } else {
+                                throw new IllegalCommandException("This dataset may not be published because its identifier is already in use by another dataset. Please contact Dataverse Support for assistance.", this);
+                            }
+                        }
+                    } catch (Exception e) {
+                        throw new CommandException(ResourceBundle.getBundle("Bundle").getString("dataset.publish.error.datacite"), this);
+                    }
+                }
+            } else {
+                throw new IllegalCommandException("This dataset may not be published because its DOI provider is not supported. Please contact Dataverse Support for assistance.", this);
+            }
+        }
+        
         if (theDataset.getPublicationDate() == null) {
             //Before setting dataset to released send notifications to users with download file
             List<RoleAssignment> ras = ctxt.roles().directRoleAssignments(theDataset);
@@ -123,16 +135,13 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
                 theDataset.getEditVersion().setVersionNumber(new Long(0));
                 theDataset.getEditVersion().setMinorVersionNumber(new Long(1));
             }
+        } else if (!minorRelease) {
+            theDataset.getEditVersion().setVersionNumber(new Long(theDataset.getVersionNumber() + 1));
+            theDataset.getEditVersion().setMinorVersionNumber(new Long(0));
         } else {
-            if (!minorRelease) {
-                theDataset.getEditVersion().setVersionNumber(new Long(theDataset.getVersionNumber() + 1));
-                theDataset.getEditVersion().setMinorVersionNumber(new Long(0));
-            } else {
-                theDataset.getEditVersion().setVersionNumber(new Long(theDataset.getVersionNumber()));
-                theDataset.getEditVersion().setMinorVersionNumber(new Long(theDataset.getMinorVersionNumber() + 1));
-            }
+            theDataset.getEditVersion().setVersionNumber(new Long(theDataset.getVersionNumber()));
+            theDataset.getEditVersion().setMinorVersionNumber(new Long(theDataset.getMinorVersionNumber() + 1));
         }
-
 
         Timestamp updateTime = new Timestamp(new Date().getTime());
         theDataset.getEditVersion().setReleaseTime(updateTime);
@@ -167,16 +176,6 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
         theDataset.setFileAccessRequest(theDataset.getLatestVersion().getTermsOfUseAndAccess().isFileAccessRequest());
         Dataset savedDataset = ctxt.em().merge(theDataset);
 
-        boolean doNormalSolrDocCleanUp = true;
-        ctxt.index().indexDataset(savedDataset, doNormalSolrDocCleanUp);
-        /**
-         * @todo consider also ctxt.solrIndex().indexPermissionsOnSelfAndChildren(theDataset);
-         */
-        /**
-         * @todo what should we do with the indexRespose?
-         */
-        IndexResponse indexResponse = ctxt.solrIndex().indexPermissionsForOneDvObject(savedDataset);
-
         // set the subject of the parent (all the way up) Dataverses
         DatasetField subject = null;
         for (DatasetField dsf : savedDataset.getLatestVersion().getDatasetFields()) {
@@ -195,7 +194,6 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
             }
         }
 
-
         DatasetVersionUser ddu = ctxt.datasets().getDatasetVersionUser(savedDataset.getLatestVersion(), this.getUser());
 
         if (ddu != null) {
@@ -212,11 +210,38 @@ public class PublishDatasetCommand extends AbstractCommand<Dataset> {
             ctxt.em().merge(datasetDataverseUser);
         }
 
-        if (protocol.equals("hdl") && doiProvider.equals("IISH")) {
-            ctxt.pidWebservice().publicizeIdentifier(savedDataset);
-        } else {
+        if (protocol.equals("doi")
+                && doiProvider.equals("EZID")) {
             ctxt.doiEZId().publicizeIdentifier(savedDataset);
         }
+        if (protocol.equals("doi")
+                && doiProvider.equals("DataCite")) {
+            try {
+                ctxt.doiDataCite().publicizeIdentifier(savedDataset);
+            } catch (IOException io) {
+                throw new CommandException(ResourceBundle.getBundle("Bundle").getString("dataset.publish.error.datacite"), this);
+            } catch (Exception e) {
+                if (e.toString().contains("Internal Server Error")) {
+                    throw new CommandException(ResourceBundle.getBundle("Bundle").getString("dataset.publish.error.datacite"), this);
+                }
+                throw new CommandException(ResourceBundle.getBundle("Bundle").getString("dataset.publish.error.datacite"), this);
+            }
+        }
+
+        /*
+        MoveIndexing to after DOI update so that if command exception is thrown the re-index will not
+        
+         */
+        
+        boolean doNormalSolrDocCleanUp = true;
+        ctxt.index().indexDataset(savedDataset, doNormalSolrDocCleanUp);
+        /**
+         * @todo consider also ctxt.solrIndex().indexPermissionsOnSelfAndChildren(theDataset);
+         */
+        /**
+         * @todo what should we do with the indexRespose?
+         */
+        IndexResponse indexResponse = ctxt.solrIndex().indexPermissionsForOneDvObject(savedDataset);
 
         return savedDataset;
     }
