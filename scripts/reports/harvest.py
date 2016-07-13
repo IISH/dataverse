@@ -8,8 +8,6 @@ import sys
 class HarvestDataverse:
     api_key = '12345'
     dataverse_endpoint = 'http://localhost'
-    HEADERS = {'dataverse': ['name'], 'dataset': ['persistentUrl'],
-               'datafile': ['id', 'name', 'contentType', 'originalFormatLabel']}
 
     def __init__(self, dataverse_endpoint, api_key):
         self.api_key = api_key
@@ -19,12 +17,8 @@ class HarvestDataverse:
     # Start the procedure with the given root dataverse
     def begin(self, root_dataverse):
 
-        csv_headers = []
-        for type in self.HEADERS:
-            for header in self.HEADERS[type]:
-                key = type + '.' + header
-                csv_headers.append('"{0}"'.format(key.upper().replace('"', '""')))
-        print(','.join(csv_headers))
+        headers = ['DATAVERSE_NAME', 'HANDLE', 'DATASET_ID', 'VERSION', 'PUBLICATION_STATUS', 'DESCRIPTION', 'LABEL', 'NAME', 'CONTENT_TYPE']
+        print(','.join([u'"{0}"'.format(header) for header in headers]))
 
         if root_dataverse is None:
             root_dataverse = ':root'
@@ -45,26 +39,39 @@ class HarvestDataverse:
             if dataverse_objects['type'] == 'dataverse':
                 self.dataverses(str(dataverse_objects['id']))
 
-    # dataset
-    # Go though all files in the dataset of the current version
+    # latest dataset
+    # Go though all verions in the dataset
     def dataset(self, dataverse, dataset_id):
 
         url = self.dataverse_endpoint + '/api/datasets/' + dataset_id + '?key=' + self.api_key
         dataset = self.getData(url)
-        if dataset['latestVersion']:
-            for files in dataset['latestVersion']['files']:
-                file = {'datafile': files['datafile'], 'dataset': dataset, 'dataverse': dataverse}
-                self.file(file)
+        if 'latestVersion' in dataset:
+            url = self.dataverse_endpoint + '/api/datasets/' + dataset_id + '/versions?key=' + self.api_key
+            versions = self.getData(url)
+            dataverse_objects = {'dataset': dataset, 'versions': versions, 'dataverse': dataverse}
+            self.print_dataverse_objects(dataverse_objects)
 
-    # file
+    # print_dataverse_objects
     # Print out the file details
-    def file(self, file):
+    def print_dataverse_objects(self, file):
 
-        csv_headers = []
-        for type in self.HEADERS:
-            for header in self.HEADERS[type]:
-                csv_headers.append('"{0}"'.format(str(file[type][header]).replace('"', '""')))
-        print(','.join(csv_headers))
+        for versions in file['versions']:
+            versionNumber = self.v(versions, 'versionNumber', '0') + '.' + self.v(versions, 'versionMinorNumber', '0')
+            _items = [
+                file['dataverse']['name'],
+                self.v(file['dataset'], 'persistentUrl'),
+                self.v(versions, 'id'),
+                versionNumber,
+                self.v(versions, 'versionState')
+            ]
+            for version in versions['files']:
+                items = list(_items)
+                items.extend([
+                    self.v(version, 'description'),
+                    self.v(version, 'label'),
+                    self.v(version['datafile'], 'name'),
+                    self.v(version['datafile'], 'contentType')])
+                print(','.join([u'"{0}"'.format(item.replace('"', '""')) for item in items]).encode('utf-8'))
 
     def getData(self, url):
         data = json.load(urllib2.urlopen(url))
@@ -73,6 +80,24 @@ class HarvestDataverse:
         else:
             print('Unable to call API.')
             sys.exit(1)
+
+
+    def v(self, dic, key, default=''):
+        if key in dic:
+            value = dic[key]
+            if self.is_number(value):
+                return str(value)
+            else:
+                return value
+        return default
+
+
+    def is_number(self, s):
+        try:
+            float(s)
+            return True
+        except ValueError:
+            return False
 
 
 def usage():
