@@ -5,30 +5,17 @@
  */
 package edu.harvard.iq.dataverse.authorization.providers.builtin;
 
-import edu.harvard.iq.dataverse.DataFile;
-import edu.harvard.iq.dataverse.DataFileServiceBean;
-import edu.harvard.iq.dataverse.Dataset;
-import edu.harvard.iq.dataverse.DatasetServiceBean;
-import edu.harvard.iq.dataverse.DatasetVersionServiceBean;
-import edu.harvard.iq.dataverse.Dataverse;
-import edu.harvard.iq.dataverse.DataverseHeaderFragment;
-import edu.harvard.iq.dataverse.DataverseServiceBean;
-import edu.harvard.iq.dataverse.DataverseSession;
-import edu.harvard.iq.dataverse.DvObject;
-import edu.harvard.iq.dataverse.PermissionServiceBean;
-import edu.harvard.iq.dataverse.PermissionsWrapper;
-import edu.harvard.iq.dataverse.RoleAssignment;
-import edu.harvard.iq.dataverse.SettingsWrapper;
-import edu.harvard.iq.dataverse.UserNotification;
+import edu.harvard.iq.dataverse.*;
+
 import static edu.harvard.iq.dataverse.UserNotification.Type.CREATEDV;
-import edu.harvard.iq.dataverse.UserNotificationServiceBean;
+
 import edu.harvard.iq.dataverse.authorization.AuthenticationServiceBean;
 import edu.harvard.iq.dataverse.authorization.UserRecordIdentifier;
 import edu.harvard.iq.dataverse.authorization.groups.Group;
 import edu.harvard.iq.dataverse.authorization.groups.GroupServiceBean;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
+import edu.harvard.iq.dataverse.authorization.users.GuestUser;
 import edu.harvard.iq.dataverse.mydata.MyDataPage;
-import edu.harvard.iq.dataverse.passwordreset.PasswordValidator;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
 import edu.harvard.iq.dataverse.util.BundleUtil;
 import edu.harvard.iq.dataverse.util.JsfHelper;
@@ -99,6 +86,9 @@ public class BuiltinUserPage implements java.io.Serializable {
     
     @EJB
     AuthenticationServiceBean authSvc;
+
+    @EJB
+    PasswordValidatorServiceBean passwordValidatorService;
 
     private AuthenticatedUser currentUser;
     private BuiltinUser builtinUser;    
@@ -392,17 +382,9 @@ public class BuiltinUserPage implements java.io.Serializable {
             logger.log(Level.INFO, "new paswword is not blank");
         }
 
-        int minPasswordLength = 6;
-        boolean forceNumber = true;
-        boolean forceSpecialChar = false;
-        boolean forceCapitalLetter = false;
-        int maxPasswordLength = 255;
-
-        PasswordValidator validator = PasswordValidator.buildValidator(forceSpecialChar, forceCapitalLetter, forceNumber, minPasswordLength, maxPasswordLength);
-        boolean passwordIsComplexEnough = password!= null && validator.validatePassword(password);
-        if (!passwordIsComplexEnough) {
+        final String messageDetail = passwordValidatorService.validatePassword(password, GuestUser.get().getIdentifier());
+        if (messageDetail != null) {
             ((UIInput) toValidate).setValid(false);
-            String messageDetail = "Password is not complex enough. The password must have at least one letter, one number and be at least " + minPasswordLength + " characters in length.";
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, "Password Error", messageDetail);
             context.addMessage(toValidate.getClientId(context), message);
         }
