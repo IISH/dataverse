@@ -40,18 +40,17 @@ import java.util.logging.Logger;
  * Digit
  * Special character ( a whitespace is not a character )
  * Rule 3. It will allow either:
- * a. 10 password length minimum
- * or
- * b. 8 password length minimum with an annual password expiration
+ * a. 8 password length minimum with an annual password expiration
+ * b. 10 password length minimum
  * Rule 4. It will forgo all the above three requirements for passwords that have a minimum length of 20.
  * <p>
  * All presets can be tweaked by applying new settings via the admin API of VM arguments.
  * When set VM arguments always overrule admin API settings.
  * <p>
- * Three validators implement the rulesets.
- * goodStrengthValidator: applies rule 4 for passwords with a length equal or greater than PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD
- * getStandardValidator: applies rules 1, 2 and 3a to passwords with a length equal or greater than PW_EXPIRATION_MIN_LENGTH
- * getLowerLengthValidator: applies rules 1, 2 and 3b for passwords with a length less than PW_EXPIRATION_MIN_LENGTH
+ * Three validator types implement the rulesets.
+ * GoodStrengthValidator: applies rule 4 for passwords with a length equal or greater than PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD
+ * LowerLengthValidator: applies rules 1, 2 and 3a to passwords with a length equal or greater than PW_EXPIRATION_MIN_LENGTH
+ * StandardValidator: applies rules 1, 2 and 3b for passwords with a length less than PW_EXPIRATION_MIN_LENGTH
  *
  * @author Lucien van Wouw <lwo@iisg.nl>
  */
@@ -60,24 +59,23 @@ import java.util.logging.Logger;
 public class PasswordValidatorServiceBean implements java.io.Serializable {
 
     private static final Logger logger = Logger.getLogger(PasswordValidatorServiceBean.class.getCanonicalName());
-    private static String PW_DICTIONARY_FILES = "weak_passwords.txt";
     private static int PW_EXPIRATION_MIN_LENGTH = 10;
     private static int PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD = 20;
     private static int PW_MAX_LENGTH = 255;
     private static int PW_MIN_LENGTH = 8;
-    private DictionaryRule dictionaryRule = null;
     private enum ValidatorTypes {
-        GoodStrengthValidator, LowerLengthValidator, StandardValidator;
+        GoodStrengthValidator, LowerLengthValidator, StandardValidator
     }
     private final LinkedHashMap<ValidatorTypes, PasswordValidator> cache;
-
     private int expirationMinLength = PW_EXPIRATION_MIN_LENGTH;
+    private int goodStrengthLength = PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD;
     private int maxLength = PW_MAX_LENGTH;
     private int minLength = PW_MIN_LENGTH;
 
     @EJB
     SystemConfig systemConfig;
 
+    @SuppressWarnings("unchecked")
     private PasswordValidatorServiceBean() {
         cache = new LinkedHashMap(3);
     }
@@ -125,7 +123,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      * @return A PasswordValidator
      */
     private PasswordValidator chooseValidator(int length) {
-        if (length >= goodStrengthLength() && goodStrengthLength() != 0) {
+        if (length >= getGoodStrengthLength() && getGoodStrengthLength() != 0) {
             return getGoodStrengthValidator();
         } else if (length < getExpirationMinLength()) {
             return getLowerLengthValidator();
@@ -138,13 +136,13 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     /**
      * goodStrengthValidator
      * <p>
-     * Apply less validation rules for passwords with an acceptable length.
+     * Apply Rule 4: It will forgo all the above three requirements for passwords that have a minimum length of 20.
      *
      * @return A PasswordValidator.
      */
     private PasswordValidator getGoodStrengthValidator() {
 
-        int minLength = goodStrengthLength();
+        int minLength = getGoodStrengthLength();
         PasswordValidator passwordValidator = cache.get(ValidatorTypes.GoodStrengthValidator);
         if (passwordValidator == null) {
             final WhitespaceRule whitespaceRule = new WhitespaceRule();
@@ -159,8 +157,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     /**
      * getLowerLengthValidator
      * <p>
-     * Implements validation policies for dictionary, min and max length, characters.
-     * Adds a expiration check.
+     * Apply Rules 1, 2 and 3a.
      *
      * @return A PasswordValidator
      */
@@ -183,7 +180,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     /**
      * getStandardValidator
      * <p>
-     * Implements validation policies for dictionary, min and max length, characters.
+     * Apply Rules 1, 2 and 3b.
      *
      * @return A PasswordValidator
      */
@@ -211,8 +208,9 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      * @return A rule.
      */
     private DictionaryRule dictionaryRule() {
+        DictionaryRule rule = null;
         try {
-            dictionaryRule = new DictionaryRule(
+            rule = new DictionaryRule(
                     new WordListDictionary(WordLists.createFromReader(
                             dictionaries(),
                             false,
@@ -220,7 +218,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         } catch (IOException e) {
             logger.log(Level.CONFIG, e.getMessage());
         }
-        return dictionaryRule;
+        return rule;
     }
 
     /**
@@ -232,6 +230,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
 
         String PwDictionaries = systemConfig.getPwDictionaries();
         if (PwDictionaries == null) {
+            final String PW_DICTIONARY_FILES = "weak_passwords.txt";
             final URL url = SystemConfig.class.getResource(PW_DICTIONARY_FILES);
             if (url == null) {
                 logger.warning("PasswordValidatorDictionaries not set and no default password file found: " + PW_DICTIONARY_FILES);
@@ -255,7 +254,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     /**
      * characterRule
      * <p>
-     * Sets a this many M from N ruleset.
+     * Sets a this many 3 from 4 ruleset.
      *
      * @return A CharacterCharacteristicsRule
      */
@@ -270,21 +269,25 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     }
 
     /**
-     * goodStrengthLength
+     * getGoodStrengthLength
      * <p>
      * Get the length that determines what is a long, hard to brute force password.
      *
      * @return A length
      */
-    private int goodStrengthLength() {
+    private int getGoodStrengthLength() {
         int goodStrengthLength = systemConfig.getPwGoodStrengthLength();
         if (goodStrengthLength == -1)
             goodStrengthLength = PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD;
-        if (goodStrengthLength < PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD) {
-            logger.log(Level.SEVERE, "The PwGoodStrengthLength " + goodStrengthLength() + " value is lower than the" +
+        if (goodStrengthLength != 0 && goodStrengthLength < PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD) {
+            logger.log(Level.SEVERE, "The PwGoodStrengthLength " + getGoodStrengthLength() + " value is lower than the" +
                     "current acceptable minimum standard");
             logger.warning("Setting default for PwGoodStrengthLength: " + PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD);
             goodStrengthLength = PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD;
+        }
+        if (this.goodStrengthLength != goodStrengthLength) {
+            this.goodStrengthLength = goodStrengthLength;
+            cache.clear();
         }
         return goodStrengthLength;
     }
@@ -298,7 +301,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      */
     private int getMaxLength() {
         int maxLength = systemConfig.getPwMaxLength();
-        if (maxLength == -1)
+        if (maxLength == -1 || maxLength == 0)
             maxLength = PW_MAX_LENGTH;
         if (this.maxLength != maxLength) {
             this.maxLength = maxLength;
@@ -328,7 +331,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     /**
      * getExpirationMinLength getter
      * <p>
-     * The getExpirationMinLength determines if an expiration date co determined the validity of the password.
+     * The getExpirationMinLength sets the upper limit where passwords should be validated with an expiration date.
      *
      * @return A length
      */
