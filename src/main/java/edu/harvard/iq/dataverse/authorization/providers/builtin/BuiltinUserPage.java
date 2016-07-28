@@ -7,8 +7,6 @@ package edu.harvard.iq.dataverse.authorization.providers.builtin;
 
 import edu.harvard.iq.dataverse.*;
 
-import static edu.harvard.iq.dataverse.UserNotification.Type.CREATEDV;
-
 import edu.harvard.iq.dataverse.authorization.AuthenticationServiceBean;
 import edu.harvard.iq.dataverse.authorization.UserRecordIdentifier;
 import edu.harvard.iq.dataverse.authorization.groups.Group;
@@ -382,7 +380,7 @@ public class BuiltinUserPage implements java.io.Serializable {
             logger.log(Level.INFO, "new paswword is not blank");
         }
 
-        final String messageDetail = passwordValidatorService.validatePassword(password, GuestUser.get().getIdentifier());
+        final String messageDetail = passwordValidatorService.validate(password, GuestUser.get().getIdentifier());
         if (messageDetail != null) {
             ((UIInput) toValidate).setValid(false);
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, "Password Error", messageDetail);

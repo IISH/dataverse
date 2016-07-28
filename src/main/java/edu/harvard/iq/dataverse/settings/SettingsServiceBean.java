@@ -217,8 +217,30 @@ public class SettingsServiceBean {
         /*
         Whether to display the publish text for every published version
         */
-        DatasetPublishPopupCustomTextOnAllVersions;
-        
+        DatasetPublishPopupCustomTextOnAllVersions,
+
+        /**
+         * The dictionary filepaths separated by a pipe (|)
+         */
+        PwDictionaries,
+
+        /**
+         * The minimum length for then to apply an expiration date.
+         */
+        PassportValidatorExpirationMinLength,
+
+        /**
+         * The minimum length of a good, strong password.
+         */
+        PwGoodStrengthLength,
+
+        /**
+         * A password minimum and maximum length
+         */
+        PwMinLength,
+        PwMaxLength
+        ;
+
         @Override
         public String toString() {
             return ":" + name();

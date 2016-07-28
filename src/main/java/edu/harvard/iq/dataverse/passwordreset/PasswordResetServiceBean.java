@@ -198,12 +198,12 @@ public class PasswordResetServiceBean {
         }
 
 
-        messageDetail = passwordValidatorService.validatePassword(newPassword, user.getUserName());
+        messageDetail = passwordValidatorService.validate(user, newPassword);
         if (messageDetail != null) {
             logger.info(messageDetail);
             return new PasswordChangeAttemptResponse(false, messageSummary, messageSummaryFail);
         }
-        
+
         String newHashedPass = PasswordEncryption.get().encrypt(newPassword);
         int latestVersionNumber = PasswordEncryption.getLatestVersionNumber();
         user.updateEncryptedPassword(newHashedPass, latestVersionNumber);
