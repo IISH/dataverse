@@ -225,9 +225,10 @@ public class SettingsServiceBean {
         PwDictionaries,
 
         /**
-         * The minimum length for then to apply an expiration date.
+         * The days and minimum length for when to apply an expiration date.
          */
-        PassportValidatorExpirationMinLength,
+        PwExpirationDays,
+        PwValidatorExpirationMinLength,
 
         /**
          * The minimum length of a good, strong password.

@@ -18,6 +18,7 @@ import edu.harvard.iq.dataverse.authorization.providers.echo.EchoAuthenticationP
 import edu.harvard.iq.dataverse.authorization.providers.shib.ShibAuthenticationProvider;
 import edu.harvard.iq.dataverse.authorization.users.ApiToken;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
+import edu.harvard.iq.dataverse.validation.PasswordValidatorServiceBean;
 
 import java.sql.Timestamp;
 import java.util.Calendar;
@@ -74,13 +75,16 @@ public class AuthenticationServiceBean {
 
     @PersistenceContext(unitName = "VDCNet-ejbPU")
     private EntityManager em;
+
+    @EJB
+    private PasswordValidatorServiceBean passwordValidatorService;
     
     @PostConstruct
     public void startup() {
         
         // First, set up the factories
         try {
-            registerProviderFactory( new BuiltinAuthenticationProviderFactory(builtinUserServiceBean) );
+            registerProviderFactory( new BuiltinAuthenticationProviderFactory(builtinUserServiceBean, passwordValidatorService) );
             registerProviderFactory( new EchoAuthenticationProviderFactory() );
             /**
              * Register shib provider factory here. Test enable/disable via Admin API, etc.

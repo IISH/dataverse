@@ -44,8 +44,7 @@ import java.util.stream.Collectors;
  * <p>
  * Three validator types implement the rulesets.
  * GoodStrengthValidator: applies rule 4 for passwords with a length equal or greater than PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD
- * LowerLengthValidator: applies rules 1, 2 and 3a to passwords with a length equal or greater than PW_EXPIRATION_MIN_LENGTH
- * StandardValidator: applies rules 1, 2 and 3b for passwords with a length less than PW_EXPIRATION_MIN_LENGTH
+ * StandardValidator: applies rules 1, 2 and 3 for passwords with a length less than PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD
  * <p>
  * The password length will determine the validator type.
  * <p>
@@ -58,6 +57,7 @@ import java.util.stream.Collectors;
 public class PasswordValidatorServiceBean implements java.io.Serializable {
 
     private static final Logger logger = Logger.getLogger(PasswordValidatorServiceBean.class.getCanonicalName());
+    private static int PW_EXPIRATION_DAYS = 365;
     private static int PW_EXPIRATION_MIN_LENGTH = 10;
     private static int PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD = 20;
     private static int PW_MAX_LENGTH = 255;
@@ -69,6 +69,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
 
     @SuppressWarnings("unchecked")
     private final static LinkedHashMap<ValidatorTypes, PasswordValidator> cache = new LinkedHashMap(3);
+    private int expirationDays = PW_EXPIRATION_DAYS;
     private int expirationMinLength = PW_EXPIRATION_MIN_LENGTH;
     private int goodStrengthLength = PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD;
     private int maxLength = PW_MAX_LENGTH;
@@ -115,8 +116,6 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         final int length = ( password == null ) ? 0 : password.length();
         if (length >= getGoodStrengthLength() && getGoodStrengthLength() != 0) {
             return getGoodStrengthValidator();
-        } else if (length < getExpirationMinLength()) {
-            return getLowerLengthValidator();
         } else {
             return getStandardValidator();
         }
@@ -146,34 +145,9 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
 
 
     /**
-     * getLowerLengthValidator
-     * <p>
-     * Apply Rules 1, 2 and 3a.
-     *
-     * @return A PasswordValidator
-     */
-    private PasswordValidator getLowerLengthValidator() {
-        int minLength = getMinLength();
-        int maxLength = getMaxLength();
-        PasswordValidator passwordValidator = cache.get(ValidatorTypes.LowerLengthValidator);
-        if (passwordValidator == null) {
-            final WhitespaceRule whitespaceRule = new WhitespaceRule();
-            final DictionaryRule dictionaryRule = dictionaryRule();
-            final LengthRule lengthRule = new LengthRule(minLength, maxLength);
-            final CharacterCharacteristicsRule characteristicsRule = characterRule();
-            final ExpirationRule expirationRule = new ExpirationRule();
-            final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule, expirationRule);
-            passwordValidator = new PasswordValidator(messageResolver, rules);
-            cache.put(ValidatorTypes.LowerLengthValidator, passwordValidator);
-        }
-        return passwordValidator;
-    }
-
-
-    /**
      * getStandardValidator
      * <p>
-     * Apply Rules 1, 2 and 3b.
+     * Apply Rules 1, 2 and 3.
      *
      * @return A PasswordValidator
      */
@@ -186,7 +160,8 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
             final DictionaryRule dictionaryRule = dictionaryRule();
             final LengthRule lengthRule = new LengthRule(minLength, maxLength);
             final CharacterCharacteristicsRule characteristicsRule = characterRule();
-            final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule);
+            final ExpirationRule expirationRule = new ExpirationRule(getExpirationMinLength(), getExpirationDays());
+            final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule, expirationRule);
             passwordValidator = new PasswordValidator(messageResolver, rules);
             cache.put(ValidatorTypes.StandardValidator, passwordValidator);
         }
@@ -272,7 +247,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     public static String parseMessages(List<String> messages) {
         return messages.stream()
                 .map(Object::toString)
-                .collect(Collectors.joining(", "));
+                .collect(Collectors.joining(" "));
     }
 
 
@@ -340,9 +315,28 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
 
 
     /**
+     * getExpirationDays getter
+     * <p>
+     * The getExpirationDays sets the number of days a passwords is good after its creation or modification date.
+     *
+     * @return A unmber
+     */
+    private int getExpirationDays() {
+        int expirationDays = systemConfig.getPwExpirationDays();
+        if (expirationDays == -1)
+            expirationDays = PW_EXPIRATION_DAYS;
+        if (this.expirationDays != expirationDays) {
+            this.expirationDays = expirationDays;
+            cache.clear();
+        }
+        return this.expirationDays;
+    }
+
+
+    /**
      * getExpirationMinLength getter
      * <p>
-     * The getExpirationMinLength sets the upper limit where passwords should be validated with an expiration date.
+     * The getExpirationMinLength sets the upper limit under which passwords should be validated with an expiration date.
      *
      * @return A length
      */

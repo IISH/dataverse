@@ -514,6 +514,24 @@ public class SystemConfig {
     }
 
     /**
+     * getPwExpirationDays
+     *
+     * Get the number of days a password is valid after it was set or changed.
+     *
+     * @return The number. 0 will imply a default.
+     */
+    public int getPwExpirationDays() {
+        int expirationDays = -1;
+        String _expirationDays = System.getProperty("pv.expirationminlength", settingsService.get(SettingsServiceBean.Key.PwExpirationDays.toString()));
+        try {
+            expirationDays = Integer.parseInt(_expirationDays);
+        } catch (NumberFormatException nfe) {
+            logger.warning("Invalid value for PwMinLength:" + _expirationDays);
+        }
+        return expirationDays;
+    }
+
+    /**
      * getPwExpirationMinLength
      *
      * Get the minimum length of a password to apply an expiration rule.
@@ -522,7 +540,7 @@ public class SystemConfig {
      */
     public int getPwExpirationMinLength() {
         int expirationMinLength = -1;
-        String _expirationMinLength = System.getProperty("pv.expirationminlength", settingsService.get(SettingsServiceBean.Key.PassportValidatorExpirationMinLength.toString()));
+        String _expirationMinLength = System.getProperty("pv.expirationminlength", settingsService.get(SettingsServiceBean.Key.PwValidatorExpirationMinLength.toString()));
         try {
             expirationMinLength = Integer.parseInt(_expirationMinLength);
         } catch (NumberFormatException nfe) {

@@ -12,27 +12,46 @@ import java.util.Map;
 /**
  * ExpirationRule
  * <p>
- * The username is used to carry the timestamp.
- * The password is good then its expiration date is in the future compared to the current system date and the slider offset.
+ * If the password is less than a certain length, then its expiration must be validated too.
  *
- * Admittedly, we abuse the username value here to store the expirationTime
+ * @author Lucien van Wouw <lwo@iisg.nl>
  */
 public class ExpirationRule implements Rule {
 
     /**
      * Error code for password being too short.
      */
-    public static final String ERROR_CODE_EXPIRED = "EXPIRED";
-    public static final String ERROR_MESSAGE_EXPIRED = "The password is expired and should be changed.";
-    private static long SLIDER = 31556926000L; // One year.
-    private long slidingExpiration;
+    static final String ERROR_CODE_EXPIRED = "EXPIRED";
+    static final String ERROR_MESSAGE_EXPIRED = "The password is over %1$s days old and has become expired.";
+    private static final long DAY = 86400000L;
+
+    /**
+     * expirationMinLength
+     * <p>
+     * Password less than this length should be checked for an expiration.
+     */
+    private int expirationMinLength;
+
+    /**
+     * expirationDays
+     * <p>
+     * The number of days the password is valid after the passwords last update or creation time.
+     */
+    private long expirationDays;
 
     public ExpirationRule() {
-        this.slidingExpiration = SLIDER;
+        this.expirationDays = 365; // Good for one year.
+        this.expirationMinLength = 10;
     }
 
-    public ExpirationRule(long slidingExpiration) {
-        this.slidingExpiration = slidingExpiration;
+    public ExpirationRule(int expirationMinLength) {
+        this.expirationDays = 365;
+        this.expirationMinLength = expirationMinLength;
+    }
+
+    public ExpirationRule(int expirationMinLength, int maxDays) {
+        this.expirationMinLength = expirationMinLength;
+        this.expirationDays = maxDays;
     }
 
     @Override
@@ -40,14 +59,19 @@ public class ExpirationRule implements Rule {
 
         final RuleResult result = new RuleResult();
 
-        long now = new Date().getTime();
-        String username = passwordData.getUsername();
-        long passwordModificationTime = Long.parseLong(username);
-        long expirationTime = (passwordModificationTime == 0) ? now : passwordModificationTime + slidingExpiration;
-        boolean valid = expirationTime >= now;
-        result.setValid(valid);
-        if (!valid) {
-            result.getDetails().add(new RuleResultDetail(ERROR_CODE_EXPIRED, createRuleResultDetailParameters()));
+        if (passwordData.getPassword().length() < expirationMinLength) {
+            long slidingExpiration = DAY * expirationDays;
+            long now = new Date().getTime();
+            String username = passwordData.getUsername(); // Admittedly, we abuse the username here to hold the modification time.
+            long passwordModificationTime = Long.parseLong(username);
+            long expirationTime = passwordModificationTime + slidingExpiration;
+            boolean valid = passwordModificationTime == 0 || expirationTime >= now;
+            result.setValid(valid);
+            if (!valid) {
+                result.getDetails().add(new RuleResultDetail(ERROR_CODE_EXPIRED, createRuleResultDetailParameters()));
+            }
+        } else {
+            result.setValid(true);
         }
 
         return result;
@@ -56,12 +80,11 @@ public class ExpirationRule implements Rule {
     /**
      * Creates the parameter data for the rule result detail.
      *
-     * @return  map of parameter name to value
+     * @return map of parameter name to value
      */
-    protected Map<String, Object> createRuleResultDetailParameters()
-    {
+    protected Map<String, Object> createRuleResultDetailParameters() {
         final Map<String, Object> m = new LinkedHashMap<>(1);
-        m.put("slidingExpiration", slidingExpiration);
+        m.put("expirationDays", expirationDays);
         return m;
     }
 }
