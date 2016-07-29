@@ -18,7 +18,7 @@ import edu.harvard.iq.dataverse.authorization.providers.echo.EchoAuthenticationP
 import edu.harvard.iq.dataverse.authorization.providers.shib.ShibAuthenticationProvider;
 import edu.harvard.iq.dataverse.authorization.users.ApiToken;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
-import java.sql.SQLException;
+
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Date;
@@ -538,6 +538,8 @@ public class AuthenticationServiceBean {
         builtinUser.setLastName(authenticatedUser.getLastName());
         // Bean Validation will check for null and invalid email addresses
         builtinUser.setEmail(newEmailAddress);
+        Calendar c = Calendar.getInstance();
+        builtinUser.setPasswordModificationTime(new Timestamp(c.getTimeInMillis()));
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         Validator validator = factory.getValidator();
         Set<ConstraintViolation<BuiltinUser>> violations = validator.validate(builtinUser);

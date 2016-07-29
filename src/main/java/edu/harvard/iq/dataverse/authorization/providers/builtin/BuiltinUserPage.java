@@ -21,10 +21,7 @@ import static edu.harvard.iq.dataverse.util.JsfHelper.JH;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -380,7 +377,7 @@ public class BuiltinUserPage implements java.io.Serializable {
             logger.log(Level.INFO, "new paswword is not blank");
         }
 
-        final String messageDetail = passwordValidatorService.validate(password, GuestUser.get().getIdentifier());
+        final String messageDetail = passwordValidatorService.validate(password, 0);
         if (messageDetail != null) {
             ((UIInput) toValidate).setValid(false);
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, "Password Error", messageDetail);

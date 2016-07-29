@@ -1,13 +1,11 @@
 package edu.harvard.iq.dataverse;
 
-import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUser;
 import edu.harvard.iq.dataverse.util.SystemConfig;
 import org.passay.*;
 import org.passay.dictionary.WordListDictionary;
 import org.passay.dictionary.WordLists;
 import org.passay.dictionary.sort.ArraysSort;
 
-import javax.annotation.PreDestroy;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.inject.Named;
@@ -26,10 +24,9 @@ import java.util.logging.Logger;
 /**
  * PasswordValidatorServiceBean
  * <p>
- * Wrapper for the org.passay.PasswordValidator password validation rule engine.
  * The purpose of this class is to validate passwords according to a set of rules as described in:
  * https://github.com/IQSS/dataverse/issues/3150
- * These contemporary rules govern the way passwords and accounts are protected and so meet current level 3
+ * These contemporary rules govern the way passwords and accounts are protected in order to keep up with current level 3
  * sensitivity data standards.
  * <p>
  * This class will offer presets:
@@ -51,6 +48,10 @@ import java.util.logging.Logger;
  * GoodStrengthValidator: applies rule 4 for passwords with a length equal or greater than PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD
  * LowerLengthValidator: applies rules 1, 2 and 3a to passwords with a length equal or greater than PW_EXPIRATION_MIN_LENGTH
  * StandardValidator: applies rules 1, 2 and 3b for passwords with a length less than PW_EXPIRATION_MIN_LENGTH
+ * <p>
+ * The password length will determine the validator type.
+ * <p>
+ * For more information on the library used here, @see http://passay.org
  *
  * @author Lucien van Wouw <lwo@iisg.nl>
  */
@@ -63,10 +64,13 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     private static int PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD = 20;
     private static int PW_MAX_LENGTH = 255;
     private static int PW_MIN_LENGTH = 8;
+
     private enum ValidatorTypes {
         GoodStrengthValidator, LowerLengthValidator, StandardValidator
     }
-    private final LinkedHashMap<ValidatorTypes, PasswordValidator> cache;
+
+    @SuppressWarnings("unchecked")
+    private final static LinkedHashMap<ValidatorTypes, PasswordValidator> cache = new LinkedHashMap(3);
     private int expirationMinLength = PW_EXPIRATION_MIN_LENGTH;
     private int goodStrengthLength = PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD;
     private int maxLength = PW_MAX_LENGTH;
@@ -75,13 +79,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     @EJB
     SystemConfig systemConfig;
 
-    @SuppressWarnings("unchecked")
-    private PasswordValidatorServiceBean() {
-        cache = new LinkedHashMap(3);
-    }
-
-    @PreDestroy
-    public void close(){
+    public void close() {
         cache.clear();
     }
 
@@ -94,15 +92,15 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      * getLowerLengthValidator
      * getStandardValidator
      *
-     * @param user     The user
+     * @param passwordModificationTime  The time the password was set or changed.
      * @param password the password to check
      * @return An error message if the validation fails. Otherwise this is null.
      */
-    public String validate(BuiltinUser user, String password) {
+    public String validate(String password, long passwordModificationTime) {
 
         final PasswordValidator passwordValidator = chooseValidator(password.length());
 
-        final PasswordData passwordData = PasswordData.newInstance(password, user.getUserName() + " " + "expiration", null);
+        final PasswordData passwordData = PasswordData.newInstance(password, String.valueOf(passwordModificationTime), null);
         RuleResult validate = passwordValidator.validate(passwordData);
         if (validate.isValid())
             return null;
@@ -114,9 +112,10 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return message.toString();
     }
 
+
     /**
      * chooseValidator
-     *
+     * <p>
      * Selects the validator based on the password length.
      *
      * @param length Length of the password.
@@ -154,6 +153,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return passwordValidator;
     }
 
+
     /**
      * getLowerLengthValidator
      * <p>
@@ -170,12 +170,14 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
             final DictionaryRule dictionaryRule = dictionaryRule();
             final LengthRule lengthRule = new LengthRule(minLength, maxLength);
             final CharacterCharacteristicsRule characteristicsRule = characterRule();
-            final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule);
+            final ExpirationRule expirationRule = new ExpirationRule();
+            final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule, expirationRule);
             passwordValidator = new PasswordValidator(rules);
             cache.put(ValidatorTypes.LowerLengthValidator, passwordValidator);
         }
         return passwordValidator;
     }
+
 
     /**
      * getStandardValidator
@@ -200,6 +202,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return passwordValidator;
     }
 
+
     /**
      * dictionaryRule
      * <p>
@@ -220,6 +223,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         }
         return rule;
     }
+
 
     /**
      * dictionaries
@@ -251,6 +255,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return fileReaders.toArray(new FileReader[fileReaders.size()]);
     }
 
+
     /**
      * characterRule
      * <p>
@@ -267,6 +272,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         characteristicsRule.getRules().add(new CharacterRule(EnglishCharacterData.Special, 1));
         return characteristicsRule;
     }
+
 
     /**
      * getGoodStrengthLength
@@ -292,6 +298,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return goodStrengthLength;
     }
 
+
     /**
      * getMaxLength getter
      * <p>
@@ -310,6 +317,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return maxLength;
     }
 
+
     /**
      * getMinLength getter
      * <p>
@@ -327,6 +335,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         }
         return minLength;
     }
+
 
     /**
      * getExpirationMinLength getter
