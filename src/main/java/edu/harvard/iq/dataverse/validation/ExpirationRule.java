@@ -1,4 +1,4 @@
-package edu.harvard.iq.dataverse;
+package edu.harvard.iq.dataverse.validation;
 
 import org.passay.PasswordData;
 import org.passay.Rule;
@@ -15,7 +15,7 @@ import java.util.Map;
  * The username is used to carry the timestamp.
  * The password is good then its expiration date is in the future compared to the current system date and the slider offset.
  *
- * Admittedly, we abuse the password value here to store the expirationTime
+ * Admittedly, we abuse the username value here to store the expirationTime
  */
 public class ExpirationRule implements Rule {
 
@@ -23,6 +23,7 @@ public class ExpirationRule implements Rule {
      * Error code for password being too short.
      */
     public static final String ERROR_CODE_EXPIRED = "EXPIRED";
+    public static final String ERROR_MESSAGE_EXPIRED = "The password is expired and should be changed.";
     private static long SLIDER = 31556926000L; // One year.
     private long slidingExpiration;
 
@@ -43,7 +44,7 @@ public class ExpirationRule implements Rule {
         String username = passwordData.getUsername();
         long passwordModificationTime = Long.parseLong(username);
         long expirationTime = (passwordModificationTime == 0) ? now : passwordModificationTime + slidingExpiration;
-        boolean valid = expirationTime > now;
+        boolean valid = expirationTime >= now;
         result.setValid(valid);
         if (!valid) {
             result.getDetails().add(new RuleResultDetail(ERROR_CODE_EXPIRED, createRuleResultDetailParameters()));

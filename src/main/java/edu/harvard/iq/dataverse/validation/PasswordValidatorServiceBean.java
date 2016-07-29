@@ -1,4 +1,4 @@
-package edu.harvard.iq.dataverse;
+package edu.harvard.iq.dataverse.validation;
 
 import edu.harvard.iq.dataverse.util.SystemConfig;
 import org.passay.*;
@@ -14,12 +14,10 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 /**
  * PasswordValidatorServiceBean
@@ -75,41 +73,33 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     private int goodStrengthLength = PW_MIN_LENGTH_GOOD_STRENGTH_PASSWORD;
     private int maxLength = PW_MAX_LENGTH;
     private int minLength = PW_MIN_LENGTH;
+    private PropertiesMessageResolver messageResolver;
 
     @EJB
     SystemConfig systemConfig;
 
-    public void close() {
-        cache.clear();
+
+    public PasswordValidatorServiceBean() {
+        final Properties properties = PropertiesMessageResolver.getDefaultProperties();
+        properties.setProperty(ExpirationRule.ERROR_CODE_EXPIRED, ExpirationRule.ERROR_MESSAGE_EXPIRED);
+        messageResolver = new PropertiesMessageResolver(properties);
     }
 
 
     /**
      * validate
      * <p>
-     * Chooses one of the three available validators based on the length of the password and in this order:
-     * goodStrengthValidator
-     * getLowerLengthValidator
-     * getStandardValidator
+     * Validates the password properties and determine if their valid.
      *
      * @param passwordModificationTime  The time the password was set or changed.
      * @param password the password to check
-     * @return An error message if the validation fails. Otherwise this is null.
+     * @return A List with error messages. Empty when the password is valid.
      */
-    public String validate(String password, long passwordModificationTime) {
-
-        final PasswordValidator passwordValidator = chooseValidator(password.length());
-
-        final PasswordData passwordData = PasswordData.newInstance(password, String.valueOf(passwordModificationTime), null);
-        RuleResult validate = passwordValidator.validate(passwordData);
-        if (validate.isValid())
-            return null;
-
-        final StringBuilder message = new StringBuilder();
-        for (RuleResultDetail detail : validate.getDetails()) {
-            message.append(detail.toString()).append(" ");
-        }
-        return message.toString();
+    public List<String> validate(String password, Date passwordModificationTime) {
+        final PasswordData passwordData = PasswordData.newInstance(password, String.valueOf(passwordModificationTime.getTime()), null);
+        final PasswordValidator passwordValidator = chooseValidator(password);
+        final RuleResult result = passwordValidator.validate(passwordData);
+        return passwordValidator.getMessages(result);
     }
 
 
@@ -118,10 +108,11 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      * <p>
      * Selects the validator based on the password length.
      *
-     * @param length Length of the password.
+     * @param password A Password
      * @return A PasswordValidator
      */
-    private PasswordValidator chooseValidator(int length) {
+    private PasswordValidator chooseValidator(String password) {
+        final int length = ( password == null ) ? 0 : password.length();
         if (length >= getGoodStrengthLength() && getGoodStrengthLength() != 0) {
             return getGoodStrengthValidator();
         } else if (length < getExpirationMinLength()) {
@@ -147,7 +138,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
             final WhitespaceRule whitespaceRule = new WhitespaceRule();
             final LengthRule lengthRule = new LengthRule(minLength, getMaxLength());
             final List<Rule> rules = Arrays.asList(whitespaceRule, lengthRule);
-            passwordValidator = new PasswordValidator(rules);
+            passwordValidator = new PasswordValidator(messageResolver, rules);
             cache.put(ValidatorTypes.GoodStrengthValidator, passwordValidator);
         }
         return passwordValidator;
@@ -172,7 +163,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
             final CharacterCharacteristicsRule characteristicsRule = characterRule();
             final ExpirationRule expirationRule = new ExpirationRule();
             final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule, expirationRule);
-            passwordValidator = new PasswordValidator(rules);
+            passwordValidator = new PasswordValidator(messageResolver, rules);
             cache.put(ValidatorTypes.LowerLengthValidator, passwordValidator);
         }
         return passwordValidator;
@@ -196,7 +187,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
             final LengthRule lengthRule = new LengthRule(minLength, maxLength);
             final CharacterCharacteristicsRule characteristicsRule = characterRule();
             final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule);
-            passwordValidator = new PasswordValidator(rules);
+            passwordValidator = new PasswordValidator(messageResolver, rules);
             cache.put(ValidatorTypes.StandardValidator, passwordValidator);
         }
         return passwordValidator;
@@ -271,6 +262,17 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         characteristicsRule.getRules().add(new CharacterRule(EnglishCharacterData.Digit, 1));
         characteristicsRule.getRules().add(new CharacterRule(EnglishCharacterData.Special, 1));
         return characteristicsRule;
+    }
+
+    /**
+     * parseMessages
+     * @param messages A list of error messages
+     * @return A Human readable string.
+     */
+    public static String parseMessages(List<String> messages) {
+        return messages.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining(", "));
     }
 
 

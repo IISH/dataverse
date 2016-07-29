@@ -1,7 +1,7 @@
 package edu.harvard.iq.dataverse.passwordreset;
 
 import edu.harvard.iq.dataverse.MailServiceBean;
-import edu.harvard.iq.dataverse.PasswordValidatorServiceBean;
+import edu.harvard.iq.dataverse.validation.PasswordValidatorServiceBean;
 import edu.harvard.iq.dataverse.authorization.providers.builtin.PasswordEncryption;
 import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUser;
 import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUserServiceBean;
@@ -198,8 +198,9 @@ public class PasswordResetServiceBean {
         }
 
 
-        messageDetail = passwordValidatorService.validate(user, newPassword);
-        if (messageDetail != null) {
+        List<String> errors = passwordValidatorService.validate(newPassword, user.getPasswordModificationTime());
+        if (!errors.isEmpty()) {
+            messageSummary = PasswordValidatorServiceBean.parseMessages(errors);
             logger.info(messageDetail);
             return new PasswordChangeAttemptResponse(false, messageSummary, messageSummaryFail);
         }

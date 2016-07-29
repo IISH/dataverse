@@ -12,8 +12,8 @@ import edu.harvard.iq.dataverse.authorization.UserRecordIdentifier;
 import edu.harvard.iq.dataverse.authorization.groups.Group;
 import edu.harvard.iq.dataverse.authorization.groups.GroupServiceBean;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
-import edu.harvard.iq.dataverse.authorization.users.GuestUser;
 import edu.harvard.iq.dataverse.mydata.MyDataPage;
+import edu.harvard.iq.dataverse.validation.PasswordValidatorServiceBean;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
 import edu.harvard.iq.dataverse.util.BundleUtil;
 import edu.harvard.iq.dataverse.util.JsfHelper;
@@ -377,8 +377,9 @@ public class BuiltinUserPage implements java.io.Serializable {
             logger.log(Level.INFO, "new paswword is not blank");
         }
 
-        final String messageDetail = passwordValidatorService.validate(password, 0);
-        if (messageDetail != null) {
+        final List<String> errors = passwordValidatorService.validate(password, new Date());
+        if (!errors.isEmpty()) {
+            String messageDetail = PasswordValidatorServiceBean.parseMessages(errors);
             ((UIInput) toValidate).setValid(false);
             FacesMessage message = new FacesMessage(FacesMessage.SEVERITY_ERROR, "Password Error", messageDetail);
             context.addMessage(toValidate.getClientId(context), message);

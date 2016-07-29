@@ -7,17 +7,22 @@ import edu.harvard.iq.dataverse.authorization.AuthenticationResponse;
 import edu.harvard.iq.dataverse.authorization.AuthenticationServiceBean;
 import edu.harvard.iq.dataverse.authorization.CredentialsAuthenticationProvider;
 import edu.harvard.iq.dataverse.authorization.exceptions.AuthenticationFailedException;
+import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinAuthenticationProvider;
+import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUser;
 import edu.harvard.iq.dataverse.authorization.providers.builtin.BuiltinUserServiceBean;
 import edu.harvard.iq.dataverse.authorization.users.AuthenticatedUser;
 import edu.harvard.iq.dataverse.settings.SettingsServiceBean;
 import edu.harvard.iq.dataverse.util.BundleUtil;
 import edu.harvard.iq.dataverse.util.JsfHelper;
+import edu.harvard.iq.dataverse.validation.PasswordValidatorServiceBean;
+
 import static edu.harvard.iq.dataverse.util.JsfHelper.JH;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
@@ -36,6 +41,11 @@ import javax.inject.Named;
 @Named("LoginPage")
 public class LoginPage implements java.io.Serializable {
     private static final Logger logger = Logger.getLogger(LoginPage.class.getName());
+
+    @EJB
+    PasswordValidatorServiceBean passwordValidatorService;
+
+
     public static class FilledCredential {
         CredentialsAuthenticationProvider.Credential credential;
         String value;
@@ -128,10 +138,6 @@ public class LoginPage implements java.io.Serializable {
         return (CredentialsAuthenticationProvider) authSvc.getAuthenticationProvider(getCredentialsAuthProviderId());
     }
     
-    public boolean validatePassword(String username, String password) {
-        return false;
-    }
-
     public String login() {
         
         AuthenticationRequest authReq = new AuthenticationRequest();
@@ -149,6 +155,10 @@ public class LoginPage implements java.io.Serializable {
         authReq.setIpAddress( dvRequestService.getDataverseRequest().getSourceAddress() );
         try {
             AuthenticatedUser r = authSvc.authenticate(credentialsAuthProviderId, authReq);
+            if (Objects.equals(BuiltinAuthenticationProvider.PROVIDER_ID, credentialsAuthProviderId)) {
+                final BuiltinUser builtinUser = dataverseUserService.find(r.getId());
+                passwordValidatorService.validate(authReq.getCredential("Password"), builtinUser.getPasswordModificationTime());
+            }
             logger.log(Level.FINE, "User authenticated: {0}", r.getEmail());
             session.setUser(r);
             
