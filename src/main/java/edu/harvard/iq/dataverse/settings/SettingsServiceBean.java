@@ -231,9 +231,9 @@ public class SettingsServiceBean {
         PwValidatorExpirationMinLength,
 
         /**
-         * The minimum length of a good, strong password.
+         * The minimum length of a good, long, strong password.
          */
-        PwGoodStrengthLength,
+        PwBigLength,
 
         /**
          * A password minimum and maximum length

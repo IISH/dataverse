@@ -1,6 +1,5 @@
-package edu.harvard.iq.dataverse.passwordvalidation;
+package edu.harvard.iq.dataverse.validation;
 
-import edu.harvard.iq.dataverse.validation.ExpirationRule;
 import org.junit.Assert;
 import org.junit.Test;
 import org.passay.PasswordData;
@@ -11,20 +10,19 @@ import java.util.Collections;
 import java.util.Date;
 
 /**
- * ExpirationRuleTest
+ * PwExpirationRuleTest
  *
- * Lets see if we can falsify our assertions.
+ * Lets see if we can falsify our assertions on the expiration Rule.
  *
  * @author Lucien van Wouw <lwo@iisg.nl>
  */
-public class ExpirationRuleTest {
+public class PwExpirationRuleTest {
 
     private static long DAY = 86400000L;
 
 
     @Test
     public void testPasswordLongLengthNotExpiredWhenNull() {
-
         long passwordModificationDate = 0L;
         ExpirationRule expirationRule = new ExpirationRule();
         PasswordData passwordData = new PasswordData();
@@ -38,7 +36,6 @@ public class ExpirationRuleTest {
 
     @Test
     public void testPasswordWithLongLengthNotExpired300DaysAgo() {
-
         long passwordModificationDate = new Date().getTime() - DAY * 300;
         ExpirationRule expirationRule = new ExpirationRule(4);
         PasswordData passwordData = new PasswordData();
@@ -51,7 +48,6 @@ public class ExpirationRuleTest {
 
     @Test
     public void testPasswordWithLongLengthNotExpired400DaysAgo() {
-
         long passwordModificationDate = new Date().getTime() - DAY * 400;
         ExpirationRule expirationRule = new ExpirationRule();
         PasswordData passwordData = new PasswordData();
@@ -64,7 +60,6 @@ public class ExpirationRuleTest {
 
     @Test
     public void testPasswordShortLengthNotExpired300DaysAgo() {
-
         long passwordModificationDate = new Date().getTime() - DAY * 300;
         ExpirationRule expirationRule = new ExpirationRule();
         PasswordData passwordData = new PasswordData();
@@ -77,7 +72,6 @@ public class ExpirationRuleTest {
 
     @Test
     public void testPasswordShortLengthExpired400DaysAgo() {
-
         long passwordModificationDate = new Date().getTime() - DAY * 400;
         ExpirationRule expirationRule = new ExpirationRule();
         PasswordData passwordData = new PasswordData();

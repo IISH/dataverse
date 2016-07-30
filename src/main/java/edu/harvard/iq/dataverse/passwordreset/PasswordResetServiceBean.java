@@ -199,7 +199,7 @@ public class PasswordResetServiceBean {
 
 
         List<String> errors = passwordValidatorService.validate(newPassword, user.getPasswordModificationTime());
-        if (!errors.isEmpty()) {
+        if (errors != null) {
             messageSummary = PasswordValidatorServiceBean.parseMessages(errors);
             logger.info(messageDetail);
             return new PasswordChangeAttemptResponse(false, messageSummary, messageSummaryFail);

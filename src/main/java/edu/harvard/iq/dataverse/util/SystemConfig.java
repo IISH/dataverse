@@ -496,19 +496,19 @@ public class SystemConfig {
     }
 
     /**
-     * getPwGoodStrengthLength
+     * getPwBigLength
      *
      * Get the minimum length of a valid password to apply an expiration rule.
      *
      * @return The length. 0 will imply a default.
      */
-    public int getPwGoodStrengthLength() {
+    public int getPwBigLength() {
         int goodStrengthLength = -1;
-        String _goodStrengthLength = System.getProperty("pv.goodstrengthlength", settingsService.get(SettingsServiceBean.Key.PwGoodStrengthLength.toString()));
+        String _goodStrengthLength = System.getProperty("pv.goodstrengthlength", settingsService.get(SettingsServiceBean.Key.PwBigLength.toString()));
         try {
             goodStrengthLength = Integer.parseInt(_goodStrengthLength);
         } catch (NumberFormatException nfe) {
-            logger.warning("Invalid value for PwGoodStrengthLength:" + _goodStrengthLength);
+            logger.warning("Invalid value for PwBigLength:" + _goodStrengthLength);
         }
         return goodStrengthLength;
     }

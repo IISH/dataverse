@@ -49,9 +49,9 @@ public class ExpirationRule implements Rule {
         this.expirationMinLength = expirationMinLength;
     }
 
-    public ExpirationRule(int expirationMinLength, int maxDays) {
+    public ExpirationRule(int expirationMinLength, int expirationDays) {
         this.expirationMinLength = expirationMinLength;
-        this.expirationDays = maxDays;
+        this.expirationDays = expirationDays;
     }
 
     @Override
@@ -59,7 +59,7 @@ public class ExpirationRule implements Rule {
 
         final RuleResult result = new RuleResult();
 
-        if (passwordData.getPassword().length() < expirationMinLength) {
+        if (expirationMinLength > 0 && passwordData.getPassword().length() < expirationMinLength) {
             long slidingExpiration = DAY * expirationDays;
             long now = new Date().getTime();
             String username = passwordData.getUsername(); // Admittedly, we abuse the username here to hold the modification time.
