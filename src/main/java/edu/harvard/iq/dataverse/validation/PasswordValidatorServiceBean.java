@@ -29,11 +29,13 @@ import java.util.stream.Collectors;
  * <p>
  * This class will offer presets:
  * Rule 1. It will use a dictionary to block the use of commonly used passwords.
+ *
  * Rule 2. It will include at least one character from at least three out of of these four categories:
  * Uppercase letter
  * Lowercase letter
  * Digit
  * Special character ( a whitespace is not a character )
+ *
  * Rule 3. It will allow either:
  * a. 8 password length minimum with an annual password expiration
  * b. 10 password length minimum
@@ -62,6 +64,8 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     private static int PW_MIN_LENGTH_BIG_LENGTH = 20;
     private static int PW_MAX_LENGTH = 255;
     private static int PW_MIN_LENGTH = 8;
+    private static String PW_DICTIONARY_FILES = "weak_passwords.txt";
+
 
     private enum ValidatorTypes {
         GoodStrengthValidator, StandardValidator
@@ -74,6 +78,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     private int bigLength = PW_MIN_LENGTH_BIG_LENGTH;
     private int maxLength = PW_MAX_LENGTH;
     private int minLength = PW_MIN_LENGTH;
+    private String dictionaries = PW_DICTIONARY_FILES;
     private PropertiesMessageResolver messageResolver;
     private boolean useSystemConfig = true;
 
@@ -100,7 +105,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     public List<String> validate(String password, Date passwordModificationTime) {
         final PasswordData passwordData = PasswordData.newInstance(password, String.valueOf(passwordModificationTime.getTime()), null);
 
-        if ( getBigLength() != 0) {
+        if (getBigLength() != 0) {
             final RuleResult ruleResult = bigLengthValidator().validate(passwordData);
             if (ruleResult.isValid())
                 return null;
@@ -127,9 +132,8 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         int minLength = getBigLength();
         PasswordValidator passwordValidator = cache.get(ValidatorTypes.GoodStrengthValidator);
         if (passwordValidator == null) {
-            final WhitespaceRule whitespaceRule = new WhitespaceRule();
             final LengthRule lengthRule = new LengthRule(minLength, getMaxLength());
-            final List<Rule> rules = Arrays.asList(whitespaceRule, lengthRule);
+            final List<Rule> rules = Collections.singletonList(lengthRule);
             passwordValidator = new PasswordValidator(messageResolver, rules);
             cache.put(ValidatorTypes.GoodStrengthValidator, passwordValidator);
         }
@@ -165,7 +169,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     /**
      * dictionaryRule
      * <p>
-     * Reads in the dictionaries from a file.
+     * Reads in the getDictionaries from a file.
      *
      * @return A rule.
      */
@@ -174,7 +178,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         try {
             rule = new DictionaryRule(
                     new WordListDictionary(WordLists.createFromReader(
-                            dictionaries(),
+                            getDictionaries(),
                             false,
                             new ArraysSort())));
         } catch (IOException e) {
@@ -185,15 +189,14 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
 
 
     /**
-     * dictionaries
+     * getDictionaries
      *
      * @return A list of readers for each dictionary.
      */
-    private FileReader[] dictionaries() {
+    private FileReader[] getDictionaries() {
 
-        String PwDictionaries = systemConfig.getPwDictionaries();
+        String PwDictionaries = (useSystemConfig) ? systemConfig.getPwDictionaries() : this.dictionaries;
         if (PwDictionaries == null) {
-            final String PW_DICTIONARY_FILES = "weak_passwords.txt";
             final URL url = PasswordValidatorServiceBean.class.getResource(PW_DICTIONARY_FILES);
             if (url == null) {
                 logger.warning("PwDictionaries not set and no default password file found: " + PW_DICTIONARY_FILES);
@@ -202,7 +205,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
                 PwDictionaries = url.getPath() + File.pathSeparator + url.getFile();
         }
 
-        List<String> files = Arrays.asList(PwDictionaries.split("|"));
+        List<String> files = Arrays.asList(PwDictionaries.split("\\|"));
         List<FileReader> fileReaders = new ArrayList<>(files.size());
         files.forEach(file -> {
             try {
@@ -214,6 +217,10 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         if (fileReaders.size() == 0)
             logger.warning("Dictionary was set, but none was read in.");
         return fileReaders.toArray(new FileReader[fileReaders.size()]);
+    }
+
+    void setDictionaries(String dictionaries) {
+        this.dictionaries = dictionaries;
     }
 
 
@@ -271,7 +278,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return this.bigLength;
     }
 
-    public void setBigLength(int bigLength) {
+    void setBigLength(int bigLength) {
         this.bigLength = bigLength;
     }
 
@@ -294,7 +301,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return this.maxLength;
     }
 
-    public void setMaxLength(int maxLength) {
+    void setMaxLength(int maxLength) {
         this.maxLength = maxLength;
     }
 
@@ -317,7 +324,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return this.minLength;
     }
 
-    public void setMinLength(int minLength) {
+    void setMinLength(int minLength) {
         this.minLength = minLength;
     }
 
@@ -341,7 +348,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return this.expirationDays;
     }
 
-    public void setExpirationDays(int expirationDays) {
+    void setExpirationDays(int expirationDays) {
         this.expirationDays = expirationDays;
     }
 
@@ -364,16 +371,11 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
         return this.expirationMinLength;
     }
 
-    public void setExpirationMinLength(int expirationMinLength) {
+    void setExpirationMinLength(int expirationMinLength) {
         this.expirationMinLength = expirationMinLength;
     }
 
-
-    public boolean isUseSystemConfig() {
-        return useSystemConfig;
-    }
-
-    public void setUseSystemConfig(boolean useSystemConfig) {
+    void setUseSystemConfig(boolean useSystemConfig) {
         this.useSystemConfig = useSystemConfig;
     }
 
