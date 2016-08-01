@@ -199,6 +199,10 @@ public class BuiltinUserPage implements java.io.Serializable {
         this.usernameField = usernameField;
     }
 
+    public String getGoodPasswordDescription() {
+        return passwordValidatorService.getGoodPasswordDescription();
+    }
+
     public String init() {
 
         // prevent creating a user if signup not allowed.

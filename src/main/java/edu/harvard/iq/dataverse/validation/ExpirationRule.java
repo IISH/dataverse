@@ -16,21 +16,21 @@ import java.util.Map;
  *
  * @author Lucien van Wouw <lwo@iisg.nl>
  */
-public class ExpirationRule implements Rule {
+class ExpirationRule implements Rule {
 
     /**
      * Error code for password being too short.
      */
     static final String ERROR_CODE_EXPIRED = "EXPIRED";
-    static final String ERROR_MESSAGE_EXPIRED = "The password is over %1$s days old and has become expired.";
+    static final String ERROR_MESSAGE_EXPIRED = "The password is over %1$s days old and has expired.";
     private static final long DAY = 86400000L;
 
     /**
-     * expirationMinLength
+     * expirationMaxLength
      * <p>
      * Password less than this length should be checked for an expiration.
      */
-    private int expirationMinLength;
+    private int expirationMaxLength;
 
     /**
      * expirationDays
@@ -39,18 +39,18 @@ public class ExpirationRule implements Rule {
      */
     private long expirationDays;
 
-    public ExpirationRule() {
+    ExpirationRule() {
         this.expirationDays = 365; // Good for one year.
-        this.expirationMinLength = 10;
+        this.expirationMaxLength = 10;
     }
 
-    public ExpirationRule(int expirationMinLength) {
+    ExpirationRule(int expirationMaxLength) {
         this.expirationDays = 365;
-        this.expirationMinLength = expirationMinLength;
+        this.expirationMaxLength = expirationMaxLength;
     }
 
-    public ExpirationRule(int expirationMinLength, int expirationDays) {
-        this.expirationMinLength = expirationMinLength;
+    ExpirationRule(int expirationMaxLength, int expirationDays) {
+        this.expirationMaxLength = expirationMaxLength;
         this.expirationDays = expirationDays;
     }
 
@@ -59,7 +59,7 @@ public class ExpirationRule implements Rule {
 
         final RuleResult result = new RuleResult();
 
-        if (expirationMinLength > 0 && passwordData.getPassword().length() < expirationMinLength) {
+        if (expirationMaxLength > 0 && passwordData.getPassword().length() < expirationMaxLength) {
             long slidingExpiration = DAY * expirationDays;
             long now = new Date().getTime();
             String username = passwordData.getUsername(); // Admittedly, we abuse the username here to hold the modification time.
@@ -82,7 +82,7 @@ public class ExpirationRule implements Rule {
      *
      * @return map of parameter name to value
      */
-    protected Map<String, Object> createRuleResultDetailParameters() {
+    private Map<String, Object> createRuleResultDetailParameters() {
         final Map<String, Object> m = new LinkedHashMap<>(1);
         m.put("expirationDays", expirationDays);
         return m;

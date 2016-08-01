@@ -222,24 +222,29 @@ public class SettingsServiceBean {
         /**
          * The dictionary filepaths separated by a pipe (|)
          */
-        PwDictionaries,
+        PVDictionaries,
 
         /**
          * The days and minimum length for when to apply an expiration date.
          */
-        PwExpirationDays,
-        PwValidatorExpirationMinLength,
+        PVExpirationDays,
+        PVValidatorExpirationMaxLength,
 
         /**
          * The minimum length of a good, long, strong password.
          */
-        PwBigLength,
+        PVGoodStrength,
 
         /**
          * A password minimum and maximum length
          */
-        PwMinLength,
-        PwMaxLength
+        PVMinLength,
+        PVMaxLength,
+
+        /**
+         * The number of M characteristics
+         */
+        PVNumberOfCharacteristics
         ;
 
         @Override

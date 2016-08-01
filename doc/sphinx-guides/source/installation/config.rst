@@ -454,3 +454,52 @@ This setting is experimental per :doc:`/installation/shibboleth`.
 ++++++++++++
 
 Set to false to disallow local accounts to be created if you are using :doc:`shibboleth` but not for production use until https://github.com/IQSS/dataverse/issues/2838 has been fixed.
+
+:PVDictionaries
++++++++++++++++
+
+Password policy setting for builtin user accounts: set a comma separated list of dictionaries containing words that cannot be used as a user password.
+
+``curl -X PUT -d "/opt/bad_passwords.txt" http://localhost:8080/api/admin/settings/:PVDictionaries``
+
+:PVExpirationDays
++++++++++++++++++
+
+Password policy setting for builtin user accounts: the number of days after an unchanged password expires given it's size is under :PVValidatorExpirationMaxLength.
+
+``curl -X PUT -d 365 http://localhost:8080/api/admin/settings/:PVExpirationDays``
+
+:PVValidatorExpirationMaxLength
++++++++++++++++++++++++++++++++
+
+Password policy setting for builtin user accounts: passwords with a size under :PVValidatorExpirationMaxLength will expire after :PVExpirationDays days.
+
+``curl -X PUT -d 10 http://localhost:8080/api/admin/settings/:PVValidatorExpirationMaxLength``
+
+:PVGoodStrength
++++++++++++++++
+
+Password policy setting for builtin user accounts: passwords equal or larger than the :PVGoodStrength setting are always valid.
+
+``curl -X PUT -d 20 http://localhost:8080/api/admin/settings/:PVValidatorExpirationMaxLength``
+
+:PVMinLength
+++++++++++++
+
+Password policy setting for builtin user accounts: a passwords minimum valid size.
+
+``curl -X PUT -d 8 http://localhost:8080/api/admin/settings/:PVMinLength``
+
+:PVMaxLength
+++++++++++++
+
+Password policy setting for builtin user accounts: a passwords maximum valid size.
+
+``curl -X PUT -d 255 http://localhost:8080/api/admin/settings/:PVMaxLength``
+
+:PVNumberOfCharacteristics
+++++++++++++++++++++++++++
+
+Password policy setting for builtin user accounts: the number indicates how many of the four character rules should be part of a password. The character rules are: use of a capital, lowercase, number and special character.
+
+``curl -X PUT -d 3 http://localhost:8080/api/admin/settings/:PVNumberOfCharacteristics``

@@ -29,13 +29,13 @@ import java.util.stream.Collectors;
  * <p>
  * This class will offer presets:
  * Rule 1. It will use a dictionary to block the use of commonly used passwords.
- *
+ * <p>
  * Rule 2. It will include at least one character from at least three out of of these four categories:
  * Uppercase letter
  * Lowercase letter
  * Digit
  * Special character ( a whitespace is not a character )
- *
+ * <p>
  * Rule 3. It will allow either:
  * a. 8 password length minimum with an annual password expiration
  * b. 10 password length minimum
@@ -44,11 +44,9 @@ import java.util.stream.Collectors;
  * All presets can be tweaked by applying new settings via the admin API of VM arguments.
  * When set VM arguments always overrule admin API settings.
  * <p>
- * Three validator types implement the rulesets.
- * GoodStrengthValidator: applies rule 4 for passwords with a length equal or greater than PW_MIN_LENGTH_BIG_LENGTH
- * StandardValidator: applies rules 1, 2 and 3 for passwords with a length less than PW_MIN_LENGTH_BIG_LENGTH
- * <p>
- * The password length will determine the validator type.
+ * Two validator types implement the rulesets.
+ * GoodStrengthValidator: applies rule 4 for passwords with a length equal or greater than MIN_LENGTH_BIG_LENGTH
+ * StandardValidator: applies rules 1, 2 and 3 for passwords with a length less than MIN_LENGTH_BIG_LENGTH
  * <p>
  * For more information on the library used here, @see http://passay.org
  *
@@ -59,12 +57,13 @@ import java.util.stream.Collectors;
 public class PasswordValidatorServiceBean implements java.io.Serializable {
 
     private static final Logger logger = Logger.getLogger(PasswordValidatorServiceBean.class.getCanonicalName());
-    private static int PW_EXPIRATION_DAYS = 365;
-    private static int PW_EXPIRATION_MIN_LENGTH = 10;
-    private static int PW_MIN_LENGTH_BIG_LENGTH = 20;
-    private static int PW_MAX_LENGTH = 255;
-    private static int PW_MIN_LENGTH = 8;
-    private static String PW_DICTIONARY_FILES = "weak_passwords.txt";
+    private static int NUMBER_OF_CHARACTERISTICS = 3;
+    private static int EXPIRATION_DAYS = 365;
+    private static int EXPIRATION_MIN_LENGTH = 10;
+    private static int MIN_LENGTH_BIG_LENGTH = 20;
+    private static int MAX_LENGTH = 0;
+    private static int MIN_LENGTH = 8;
+    private static String DICTIONARY_FILES = "weak_passwords.txt";
 
 
     private enum ValidatorTypes {
@@ -72,22 +71,22 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     }
 
     @SuppressWarnings("unchecked")
-    private final static LinkedHashMap<ValidatorTypes, PasswordValidator> cache = new LinkedHashMap(2);
-    private int expirationDays = PW_EXPIRATION_DAYS;
-    private int expirationMinLength = PW_EXPIRATION_MIN_LENGTH;
-    private int bigLength = PW_MIN_LENGTH_BIG_LENGTH;
-    private int maxLength = PW_MAX_LENGTH;
-    private int minLength = PW_MIN_LENGTH;
-    private String dictionaries = PW_DICTIONARY_FILES;
+    private final static LinkedHashMap<ValidatorTypes, PasswordValidator> validators = new LinkedHashMap(2);
+    private int expirationDays = EXPIRATION_DAYS;
+    private int expirationMaxLength = EXPIRATION_MIN_LENGTH;
+    private int goodStrength = MIN_LENGTH_BIG_LENGTH;
+    private int maxLength = MAX_LENGTH;
+    private int minLength = MIN_LENGTH;
+    private int numberOfCharacteristics = NUMBER_OF_CHARACTERISTICS;
+    private String dictionaries = DICTIONARY_FILES;
     private PropertiesMessageResolver messageResolver;
-    private boolean useSystemConfig = true;
 
     @EJB
     SystemConfig systemConfig;
 
-    @SuppressWarnings("all")
-    public PasswordValidatorServiceBean() {
+    PasswordValidatorServiceBean() {
         final Properties properties = PropertiesMessageResolver.getDefaultProperties();
+        properties.setProperty(GoodStrengthRule.ERROR_CODE_BIG, GoodStrengthRule.ERROR_MESSAGE_BIG);
         properties.setProperty(ExpirationRule.ERROR_CODE_EXPIRED, ExpirationRule.ERROR_MESSAGE_EXPIRED);
         messageResolver = new PropertiesMessageResolver(properties);
     }
@@ -103,41 +102,50 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      * @return A List with error messages. Null when the password is valid.
      */
     public List<String> validate(String password, Date passwordModificationTime) {
+
+        init();
         final PasswordData passwordData = PasswordData.newInstance(password, String.valueOf(passwordModificationTime.getTime()), null);
-
-        if (getBigLength() != 0) {
-            final RuleResult ruleResult = bigLengthValidator().validate(passwordData);
-            if (ruleResult.isValid())
+        final RuleResult result = new RuleResult();
+        for (PasswordValidator currentUser : validators.values()) {
+            RuleResult r = currentUser.validate(passwordData);
+            if (r.isValid())
                 return null;
+            result.getDetails().addAll(r.getDetails());
         }
 
-        final RuleResult ruleResult = standardValidator().validate(passwordData);
-        if (ruleResult.isValid()) {
-            return null;
-        }
+        return validators.get(ValidatorTypes.StandardValidator).getMessages(result);
+    }
 
-        return standardValidator().getMessages(ruleResult);
+    /**
+     * init
+     * <p>
+     * Instantiates and caches the validators.
+     */
+    private void init() {
+        setStandardValidator();
+        setGoodStrengthValidator();
     }
 
 
     /**
-     * bigLengthValidator
+     * goodStrengthValidator
      * <p>
-     * Apply Rule 4: It will forgo all the above three requirements for passwords that have a minimum length of 20.
-     *
-     * @return A PasswordValidator.
+     * Apply Rule 4: It will forgo all the above three requirements for passwords that have a minimum length of
+     * MIN_LENGTH_BIG_LENGTH.
      */
-    private PasswordValidator bigLengthValidator() {
+    private void setGoodStrengthValidator() {
 
-        int minLength = getBigLength();
-        PasswordValidator passwordValidator = cache.get(ValidatorTypes.GoodStrengthValidator);
-        if (passwordValidator == null) {
-            final LengthRule lengthRule = new LengthRule(minLength, getMaxLength());
-            final List<Rule> rules = Collections.singletonList(lengthRule);
-            passwordValidator = new PasswordValidator(messageResolver, rules);
-            cache.put(ValidatorTypes.GoodStrengthValidator, passwordValidator);
+        int goodStrength = getGoodStrength();
+        if (goodStrength != 0) {
+            PasswordValidator passwordValidator = validators.get(ValidatorTypes.GoodStrengthValidator);
+            if (passwordValidator == null) {
+                final GoodStrengthRule lengthRule = new GoodStrengthRule();
+                lengthRule.setMinimumLength(goodStrength);
+                final List<Rule> rules = Collections.singletonList(lengthRule);
+                passwordValidator = new PasswordValidator(messageResolver, rules);
+                validators.put(ValidatorTypes.GoodStrengthValidator, passwordValidator);
+            }
         }
-        return passwordValidator;
     }
 
 
@@ -145,24 +153,29 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      * standardValidator
      * <p>
      * Apply Rules 1, 2 and 3.
-     *
-     * @return A PasswordValidator
      */
-    private PasswordValidator standardValidator() {
-        int minLength = getMinLength();
+    private void setStandardValidator() {
         int maxLength = getMaxLength();
-        PasswordValidator passwordValidator = cache.get(ValidatorTypes.StandardValidator);
+        int minLength = getMinLength();
+        int numberOfCharacteristics = getNumberOfCharacteristics();
+        PasswordValidator passwordValidator = validators.get(ValidatorTypes.StandardValidator);
         if (passwordValidator == null) {
-            final WhitespaceRule whitespaceRule = new WhitespaceRule();
-            final DictionaryRule dictionaryRule = dictionaryRule();
-            final LengthRule lengthRule = new LengthRule(minLength, maxLength);
-            final CharacterCharacteristicsRule characteristicsRule = characterRule();
-            final ExpirationRule expirationRule = new ExpirationRule(getExpirationMinLength(), getExpirationDays());
-            final List<Rule> rules = Arrays.asList(whitespaceRule, dictionaryRule, lengthRule, characteristicsRule, expirationRule);
+            final List<Rule> rules = new ArrayList<>(4);
+            rules.add(dictionaryRule());
+            final LengthRule lengthRule = new LengthRule();
+            if (maxLength != 0) {
+                lengthRule.setMaximumLength(maxLength);
+            }
+            if (minLength != 0) {
+                lengthRule.setMinimumLength(minLength);
+            }
+            rules.add(lengthRule);
+            rules.add(new ExpirationRule(getExpirationMaxLength(), getExpirationDays()));
+            if (numberOfCharacteristics != 0)
+                rules.add(characterRule());
             passwordValidator = new PasswordValidator(messageResolver, rules);
-            cache.put(ValidatorTypes.StandardValidator, passwordValidator);
+            validators.put(ValidatorTypes.StandardValidator, passwordValidator);
         }
-        return passwordValidator;
     }
 
 
@@ -195,17 +208,10 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      */
     private FileReader[] getDictionaries() {
 
-        String PwDictionaries = (useSystemConfig) ? systemConfig.getPwDictionaries() : this.dictionaries;
-        if (PwDictionaries == null) {
-            final URL url = PasswordValidatorServiceBean.class.getResource(PW_DICTIONARY_FILES);
-            if (url == null) {
-                logger.warning("PwDictionaries not set and no default password file found: " + PW_DICTIONARY_FILES);
-                PwDictionaries = PW_DICTIONARY_FILES;
-            } else
-                PwDictionaries = url.getPath() + File.pathSeparator + url.getFile();
-        }
+        String dictionaries = systemConfig == null ? this.dictionaries : systemConfig.getPVDictionaries();
+        setDictionaries(dictionaries);
 
-        List<String> files = Arrays.asList(PwDictionaries.split("\\|"));
+        List<String> files = Arrays.asList(dictionaries.split(","));
         List<FileReader> fileReaders = new ArrayList<>(files.size());
         files.forEach(file -> {
             try {
@@ -220,7 +226,18 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
     }
 
     void setDictionaries(String dictionaries) {
-        this.dictionaries = dictionaries;
+        if (dictionaries == null) {
+            final URL url = PasswordValidatorServiceBean.class.getResource(DICTIONARY_FILES);
+            if (url == null) {
+                logger.warning("PwDictionaries not set and no default password file found: " + DICTIONARY_FILES);
+                dictionaries = DICTIONARY_FILES;
+            } else
+                dictionaries = url.getPath() + File.pathSeparator + url.getFile();
+        }
+        if ( !dictionaries.equals(this.dictionaries)) {
+            this.dictionaries = dictionaries;
+            validators.remove(ValidatorTypes.StandardValidator);
+        }
     }
 
 
@@ -233,7 +250,7 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
      */
     private CharacterCharacteristicsRule characterRule() {
         final CharacterCharacteristicsRule characteristicsRule = new CharacterCharacteristicsRule();
-        characteristicsRule.setNumberOfCharacteristics(3);
+        characteristicsRule.setNumberOfCharacteristics(getNumberOfCharacteristics());
         characteristicsRule.getRules().add(new CharacterRule(EnglishCharacterData.UpperCase, 1));
         characteristicsRule.getRules().add(new CharacterRule(EnglishCharacterData.LowerCase, 1));
         characteristicsRule.getRules().add(new CharacterRule(EnglishCharacterData.Digit, 1));
@@ -253,130 +270,151 @@ public class PasswordValidatorServiceBean implements java.io.Serializable {
                 .collect(Collectors.joining(" "));
     }
 
+    /**
+     * getGoodPasswordDescription
+     * <p>
+     * Describes all the characteristics of a valid password.
+     */
+    public String getGoodPasswordDescription() {
+        final List<String> requirements = new ArrayList<>(5);
+        if (getMinLength() != 0)
+            requirements.add(String.format("a minimum of %s characters", getMinLength()));
+        if (getMaxLength() != 0)
+            requirements.add(String.format("a maximum of %s characters", getMaxLength()));
+        if (getNumberOfCharacteristics() != 0)
+            requirements.add(String.format("at least %s of these four characters: a number, special character, lowercase letter and uppercase letter", getNumberOfCharacteristics()));
+        if (getGoodStrength() != 0)
+            requirements.add(String.format("alternatively, the previous requirements do not apply for passwords of %s or more characters", getGoodStrength()));
+        return requirements.stream()
+                .map(Object::toString)
+                .collect(Collectors.joining("; "));
+    }
+
 
     /**
-     * getBigLength
+     * getGoodStrength
      * <p>
-     * Get the length that determines what is a long, hard to brute force password.
+     * Get the length for the GoodStrengthValidator that determines what is a long, hard to brute force password.
      *
      * @return A length
      */
-    private int getBigLength() {
-        int bigLength = useSystemConfig ? systemConfig.getPwBigLength() : this.bigLength;
-        if (bigLength == -1)
-            bigLength = PW_MIN_LENGTH_BIG_LENGTH;
-        if (bigLength != 0 && bigLength < PW_MIN_LENGTH_BIG_LENGTH) {
-            logger.log(Level.SEVERE, "The PwBigLength " + getBigLength() + " value is lower than the" +
-                    "current acceptable minimum standard");
-            logger.warning("Setting default for PwBigLength: " + PW_MIN_LENGTH_BIG_LENGTH);
-            bigLength = PW_MIN_LENGTH_BIG_LENGTH;
-        }
-        if (this.bigLength != bigLength) {
-            this.bigLength = bigLength;
-            cache.clear();
-        }
-        return this.bigLength;
+    private int getGoodStrength() {
+        int goodStrength = systemConfig == null ? this.goodStrength : systemConfig.getPVGoodStrength();
+        setGoodStrength(goodStrength);
+        return this.goodStrength;
     }
 
-    void setBigLength(int bigLength) {
-        this.bigLength = bigLength;
+    void setGoodStrength(int goodStrength) {
+        if (goodStrength == 0)
+            validators.remove(ValidatorTypes.GoodStrengthValidator);
+        else if (goodStrength < MIN_LENGTH_BIG_LENGTH) {
+            logger.log(Level.SEVERE, "The PwGoodStrength " + getGoodStrength() + " value is lower than the" +
+                    "current acceptable minimum standard");
+            logger.warning("Setting default for PwGoodStrength: " + MIN_LENGTH_BIG_LENGTH);
+            goodStrength = MIN_LENGTH_BIG_LENGTH;
+        }
+        if (this.goodStrength != goodStrength) {
+            this.goodStrength = goodStrength;
+            validators.remove(ValidatorTypes.GoodStrengthValidator);
+        }
     }
 
 
     /**
      * getMaxLength
      * <p>
-     * The maximum password length.
+     * The maximum password length for the StandardValidator
      *
      * @return A length
      */
     private int getMaxLength() {
-        int maxLength = useSystemConfig ? systemConfig.getPwMaxLength() : this.maxLength;
-        if (maxLength == -1 || maxLength == 0)
-            maxLength = PW_MAX_LENGTH;
-        if (this.maxLength != maxLength) {
-            this.maxLength = maxLength;
-            cache.clear();
-        }
+        int maxLength = systemConfig == null ? this.maxLength : systemConfig.getPVMaxLength();
+        setMaxLength(maxLength);
         return this.maxLength;
     }
 
     void setMaxLength(int maxLength) {
-        this.maxLength = maxLength;
+        if (this.maxLength != maxLength) {
+            this.maxLength = maxLength;
+            validators.remove(ValidatorTypes.StandardValidator);
+        }
     }
 
 
     /**
      * getMinLength
      * <p>
-     * The minimum password length.
+     * The minimum password length for the StandardValidator.
      *
      * @return A length
      */
     private int getMinLength() {
-        int minLength = useSystemConfig ? systemConfig.getPwMinLength() : this.minLength;
-        if (minLength == -1)
-            minLength = PW_MIN_LENGTH;
-        if (this.minLength != minLength) {
-            this.minLength = minLength;
-            cache.clear();
-        }
+        int minLength = systemConfig == null ? this.minLength : systemConfig.getPVMinLength();
+        setMinLength(minLength);
         return this.minLength;
     }
 
     void setMinLength(int minLength) {
-        this.minLength = minLength;
+        if (this.minLength != minLength) {
+            this.minLength = minLength;
+            validators.remove(ValidatorTypes.StandardValidator);
+        }
     }
 
 
     /**
      * getExpirationDays
      * <p>
-     * The getExpirationDays sets the number of days a passwords is good after its creation or modification date.
-     * If set to zero, an expiration is not applied.
+     * The number of days a passwords is good after its creation or modification date.
+     * If set to zero, an expiration is not applied for the StandardValidator.
      *
      * @return A number
      */
     private int getExpirationDays() {
-        int expirationDays = useSystemConfig ? systemConfig.getPwExpirationDays() : this.expirationDays;
-        if (expirationDays == -1)
-            expirationDays = PW_EXPIRATION_DAYS;
-        if (this.expirationDays != expirationDays) {
-            this.expirationDays = expirationDays;
-            cache.clear();
-        }
+        int expirationDays = systemConfig == null ? this.expirationDays : systemConfig.getPVExpirationDays();
+        setExpirationDays(expirationDays);
         return this.expirationDays;
     }
 
     void setExpirationDays(int expirationDays) {
-        this.expirationDays = expirationDays;
+        if (this.expirationDays != expirationDays) {
+            this.expirationDays = expirationDays;
+            validators.remove(ValidatorTypes.StandardValidator);
+        }
+    }
+
+    void setNumberOfCharacteristics(int numberOfCharacteristics) {
+        if (this.numberOfCharacteristics != numberOfCharacteristics) {
+            this.numberOfCharacteristics = numberOfCharacteristics;
+            validators.remove(ValidatorTypes.StandardValidator);
+        }
+    }
+
+    private int getNumberOfCharacteristics() {
+        int numberOfCharacteristics = systemConfig == null ? this.numberOfCharacteristics : systemConfig.getPVNumberOfCharacteristics();
+        setNumberOfCharacteristics(numberOfCharacteristics);
+        return this.numberOfCharacteristics;
     }
 
 
     /**
-     * getExpirationMinLength
+     * getExpirationMaxLength
      * <p>
-     * The getExpirationMinLength sets the upper limit under which passwords should be validated with an expiration date.
+     * The upper limit of a password length for which an expiration date will be applicable.
      *
      * @return A length
      */
-    private int getExpirationMinLength() {
-        int expirationMinLength = useSystemConfig ? systemConfig.getPwExpirationMinLength() : this.expirationMinLength;
-        if (expirationMinLength == -1)
-            expirationMinLength = PW_EXPIRATION_MIN_LENGTH;
-        if (this.expirationMinLength != expirationMinLength) {
-            this.expirationMinLength = expirationMinLength;
-            cache.clear();
+    private int getExpirationMaxLength() {
+        int expirationMaxLength = systemConfig == null ? this.expirationMaxLength : systemConfig.getPVExpirationMaxLength();
+        setExpirationMaxLength(expirationMaxLength);
+        return this.expirationMaxLength;
+    }
+
+    void setExpirationMaxLength(int expirationMaxLength) {
+        if (this.expirationMaxLength != expirationMaxLength) {
+            this.expirationMaxLength = expirationMaxLength;
+            validators.remove(ValidatorTypes.StandardValidator);
         }
-        return this.expirationMinLength;
-    }
-
-    void setExpirationMinLength(int expirationMinLength) {
-        this.expirationMinLength = expirationMinLength;
-    }
-
-    void setUseSystemConfig(boolean useSystemConfig) {
-        this.useSystemConfig = useSystemConfig;
     }
 
 }
